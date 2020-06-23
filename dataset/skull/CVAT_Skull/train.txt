@@ -1,0 +1,18 @@
+data/obj_train_data/0716_182536_CH11-1_[HD] 무한도전.tp_20110725_132913.jpg
+data/obj_train_data/1325C5374E2BADCB2F.jpg
+data/obj_train_data/1659234E4EB0FCA002.jpg
+data/obj_train_data/183A984B4EB0FC891B.jpg
+data/obj_train_data/2011-01-08(토)오후063300-무한도전[(097754)20-38-23].jpg
+data/obj_train_data/205C8A194C9355A163.jpg
+data/obj_train_data/213BEC3756C8A28A21.jpg
+data/obj_train_data/800Å©±âÀÇ ÇØ°ñ.jpg
+data/obj_train_data/OIP (1).jpg
+data/obj_train_data/OIP (2).jpg
+data/obj_train_data/OIP (3).jpg
+data/obj_train_data/OIP (4).jpg
+data/obj_train_data/OIP.jpg
+data/obj_train_data/download.jpg
+data/obj_train_data/z7dL2tU.jpg
+data/obj_train_data/무한도전-서울구경-1부-2010-11-16(화)오후055348-.jpg
+data/obj_train_data/무한도전_해골은숫자다 (2).jpg
+data/obj_train_data/서면에펙학원.jpg
