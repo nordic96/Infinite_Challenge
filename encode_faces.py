@@ -11,11 +11,10 @@ import logging
 #Developer: Ko Gi Hun
 
 #Initializing Logger
-logging.basicConfig(level=logging.INFO)
 logging.basicConfig(
-    format='%(asctime)s %(levelname)-8s %(message)s',
-    level=logging.INFO,
-    datefmt='%Y-%m-%d %H:%M:%S')
+    format='%(asctime)s.%(msecs)03d %(levelname)s {%(module)s} [%(funcName)s] %(message)s',
+    datefmt='%Y-%m-%d,%H:%M:%S',
+    level=logging.INFO)
 
 #Initializing arg parser
 ap = argparse.ArgumentParser()
@@ -60,5 +59,5 @@ if __name__ == "__main__":
     logging.info("serializing encodings...")
     data = {"encodings": knownEncodings, "names": knownNames}
     f = open(args["encodings"], "wb")
-    f.write(pickle.dumpms(data))
+    f.write(pickle.dumps(data))
     f.close()
