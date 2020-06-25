@@ -29,7 +29,7 @@ if __name__ == "__main__":
     #Looping through the dataset images for encoding
     for (i, imagePath) in enumerate(imagePaths):
         name = imagePath.split(os.path.sep)[-2]
-        logger.info("Processing image of {}: {}/{}".format(name, i + 1, len(imagePaths)))
+        logger.info("Processing image of {} {}: {}/{}".format(name, imagePath, i + 1, len(imagePaths)))
 
         #loading the image and convert it from BGR (Opencv ordering)
         #To dlib ordering(RGB)
