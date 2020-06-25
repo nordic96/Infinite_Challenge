@@ -4,17 +4,11 @@ import argparse
 import pickle
 import cv2
 import os
-import logging
+from logger.base_logger import logger
 
 #ENCODING FACES
 #Developed: 24 June 2020
 #Developer: Ko Gi Hun
-
-#Initializing Logger
-logging.basicConfig(
-    format='%(asctime)s.%(msecs)03d %(levelname)s {%(module)s} [%(funcName)s] %(message)s',
-    datefmt='%Y-%m-%d,%H:%M:%S',
-    level=logging.INFO)
 
 #Initializing arg parser
 ap = argparse.ArgumentParser()
@@ -25,7 +19,7 @@ ap.add_argument("-d", "--detection-method", type=str, default="cnn",
 args = vars(ap.parse_args())
 
 if __name__ == "__main__":
-    logging.info('quantifying faces..')
+    logger.info('quantifying faces..')
     imagePaths = list(paths.list_images(args["dataset"]))
 
     #Initializing the list of known encodings and known names
@@ -35,7 +29,7 @@ if __name__ == "__main__":
     #Looping through the dataset images for encoding
     for (i, imagePath) in enumerate(imagePaths):
         name = imagePath.split(os.path.sep)[-2]
-        logging.info("Processing image of {}: {}/{}".format(name, i + 1, len(imagePaths)))
+        logger.info("Processing image of {} {}: {}/{}".format(name, imagePath, i + 1, len(imagePaths)))
 
         #loading the image and convert it from BGR (Opencv ordering)
         #To dlib ordering(RGB)
@@ -56,7 +50,7 @@ if __name__ == "__main__":
             knownNames.append(name)
 
     # Serialization of encodings into file and save
-    logging.info("serializing encodings...")
+    logger.info("serializing encodings...")
     data = {"encodings": knownEncodings, "names": knownNames}
     f = open(args["encodings"], "wb")
     f.write(pickle.dumps(data))
