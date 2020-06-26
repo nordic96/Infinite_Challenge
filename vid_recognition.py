@@ -15,6 +15,7 @@ import frame_recognition as fr
 # Initializing arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-e", "--encodings", required=True, help="path to serialized db of facial encodings")
+ap.add_argument("-i", "--input", required=True, help="path to the input stream video file")
 ap.add_argument("-o", "--output", type=str, help="path to output video")
 ap.add_argument("-y", "--display", type=int, default=1, help="whether or not to display output frame to screen")
 ap.add_argument("-d", "--detection_method", type=str, default="cnn", help="face detection model to use: either 'hog'/'cnn'")
@@ -25,14 +26,16 @@ if __name__ == "__main__":
     data = pickle.loads(open(args["encodings"], "rb").read())
 
     #Initializing video stream
-    vs = VideoStream(src='test/test.mp4').start()
+    logger.info('initializing video stream...')
+    vs = VideoStream(src=args["input"])
     writer = None
     time.sleep(2.0)
 
-    logger.info('video processing starts..')
+    logger.info('video processing [{}] starts..'.format(args["input"]))
+    frame_count = 0
     while True:
         frame = vs.read()
-
+        frame_count += 1
         # Frame conversion
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         rgb = imutils.resize(frame, width = 750)
@@ -41,6 +44,8 @@ if __name__ == "__main__":
         #Detection
         boxes = face_recognition.face_locations(rgb, model=args["detection_method"])
         encodings = face_recognition.face_encodings(rgb, boxes)
+        logger.info('frame: {}: faces detected: {}'.format(frame_count, len(boxes)))
+
         names = []
         names = fr.process_recognition(names, data, encodings)
 
@@ -55,8 +60,12 @@ if __name__ == "__main__":
             cv2.putText(frame, name, (left, y), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
         if writer is None and args["output"] is not None:
-            fourcc = cv2.VideoWriter_fourcc(*"MJPG")
-            writer = cv2.VideoWriter(args["output"], fourcc, 20, (frame.shape[1], frame.shape[0]), True)
+            writer = cv2.VideoWriter(
+                args["output"],
+                cv2.VideoWriter_fourcc('M','J','P','G'),
+                10,
+                (frame.shape[1], frame.shape[0]),
+                True)
 
         if writer is not None:
             writer.write(frame)
@@ -67,6 +76,7 @@ if __name__ == "__main__":
 
             if key == ord("q"):
                 break
+
     cv2.destroyAllWindows()
     vs.stop()
     logger.info('Stopped video writing..')
