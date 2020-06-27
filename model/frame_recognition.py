@@ -2,7 +2,7 @@ import face_recognition
 import argparse
 import pickle
 import cv2
-from logger.base_logger import logger
+from logger import base_logger
 
 def process_recognition(names, data, encodings):
     # Recognition and Comparing faces in the database
@@ -31,7 +31,7 @@ if __name__ == "__main__":
     ap.add_argument("-d", "--detection-method", type=str, default="cnn")
     args = vars(ap.parse_args())
 
-    logger.info('loading encodings...')
+    base_logger.logger.info('loading encodings...')
     data = pickle.loads(open(args["encodings"], "rb").read())
 
     # loading the image that we want for recognition
@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
     # Detecting the coordinatesof the bounding boxes corresponding to each face in the input image
     # then compute the facial embeddings for each face
-    logger.info("recognizing faces... for {}".format(args["image"]))
+    base_logger.logger.info("recognizing faces... for {}".format(args["image"]))
     boxes = face_recognition.face_locations(
         rgb,
         model=args["detection_method"]

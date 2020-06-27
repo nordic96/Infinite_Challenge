@@ -1,11 +1,14 @@
+import os.path
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import face_recognition
 import argparse
 import imutils
 import pickle
 import time
 import cv2
-from logger.base_logger import logger
 from model import frame_recognition as fr
+from logger.base_logger import logger
 
 # Description: Facial Recognition with video stream input
 # Developed Date: 25 June 2020
@@ -40,7 +43,7 @@ if __name__ == "__main__":
         frame_count += 1
         # Frame conversion
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        rgb = imutils.resize(frame, width = 180)
+        rgb = imutils.resize(frame, width = 280)
         r = frame.shape[1] / float(rgb.shape[1])
 
         #Detection
