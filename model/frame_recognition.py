@@ -1,3 +1,6 @@
+import os.path
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import face_recognition
 import argparse
 import pickle
@@ -58,5 +61,5 @@ if __name__ == "__main__":
         cv2.putText(image, name, (left, y), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
     #cv2.imshow("Image", image)
-    cv2.imwrite("../test/img_output.jpg", image)
+    cv2.imwrite("../test/result.jpg", image)
     #cv2.waitKey(0)
