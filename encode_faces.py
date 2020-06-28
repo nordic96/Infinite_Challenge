@@ -5,6 +5,7 @@ import pickle
 import cv2
 import os
 from logger.base_logger import logger
+from datetime import date
 
 #ENCODING FACES
 #Developed: 24 June 2020
@@ -13,7 +14,7 @@ from logger.base_logger import logger
 #Initializing arg parser
 ap = argparse.ArgumentParser()
 ap.add_argument("-i", "--dataset", required=True, help = "path to input directory of faces + images")
-ap.add_argument("-e", "--encodings", required=True, help = "path to serialized db of facial encodings")
+ap.add_argument("-e", "--encodings", required=True, help = "path dir to serialized db of facial encodings")
 ap.add_argument("-d", "--detection-method", type=str, default="cnn",
                 help = "face detection model to use: either 'hog' or 'cnn'")
 args = vars(ap.parse_args())
@@ -52,6 +53,10 @@ if __name__ == "__main__":
     # Serialization of encodings into file and save
     logger.info("serializing encodings...")
     data = {"encodings": knownEncodings, "names": knownNames}
-    f = open(args["encodings"], "wb")
+    str_filepath = "encodings_" + date.today().strftime("%d_%b_%y") + ".pickle"
+    str_filepath = os.path.join(args["encodings"], str_filepath)
+
+    f = open(str_filepath, "wb")
     f.write(pickle.dumps(data))
     f.close()
+    logger.info("finished encoding serialization: {}".format(str_filepath))
