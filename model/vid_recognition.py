@@ -12,6 +12,7 @@ from logger.base_logger import logger
 
 # Description: Facial Recognition with video stream input
 # Developed Date: 25 June 2020
+# Last Modified: 28 June 2020
 
 # Initializing arguments
 ap = argparse.ArgumentParser()
@@ -21,6 +22,13 @@ ap.add_argument("-o", "--output", type=str, help="path to output video")
 ap.add_argument("-y", "--display", type=int, default=1, help="whether or not to display output frame to screen")
 ap.add_argument("-d", "--detection_method", type=str, default="cnn", help="face detection model to use: either 'hog'/'cnn'")
 args = vars(ap.parse_args())
+
+def milli_to_timestamp(ms):
+    h, ms = divmod(ms, 60*60*1000)
+    m, ms = divmod(ms, 60*1000)
+    s, ms = divmod(ms, 1000)
+    timestamp = "{}:{}:{}:{}".format(h,m,s,ms)
+    return timestamp
 
 if __name__ == "__main__":
     logger.info('loading encodings')
@@ -35,12 +43,17 @@ if __name__ == "__main__":
     logger.info('video processing [{}] starts..'.format(args["input"]))
     frame_count = 0
     while vs.isOpened():
-        ret, frame = vs.read()
+        success, frame = vs.read()
         #logger.info(frame.shape)
-        if not ret:
+        if not success:
             logger.error("Can't receive frame from source file. Exiting...")
             break
         frame_count += 1
+
+        # Time stamping
+        millisecond = int(vs.get(cv2.CAP_PROP_POS_MSEC))
+        timestamp = milli_to_timestamp(millisecond)
+
         # Frame conversion
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         rgb = imutils.resize(frame, width = 280)
@@ -52,7 +65,7 @@ if __name__ == "__main__":
 
         names = []
         names = fr.process_recognition(names, data, encodings)
-        logger.info('frame: {}: faces detected: {}'.format(frame_count, names))
+        logger.info('sampled_frame: {} | timestamp: {} | faces detected: {}'.format(frame_count, timestamp, names))
 
         for((top, right, bottom, left), name) in zip(boxes, names):
             top = int(top * r)
@@ -84,7 +97,7 @@ if __name__ == "__main__":
                 break
 
     cv2.destroyAllWindows()
-    vs.stop()
+    #vs.stop()
     logger.info('Stopped video writing..')
     if writer is not None:
         writer.release()
