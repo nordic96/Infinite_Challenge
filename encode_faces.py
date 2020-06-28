@@ -6,15 +6,22 @@ import cv2
 import os
 from logger.base_logger import logger
 from datetime import date
+import configparser
 
-#ENCODING FACES
+#Description: Creating serialized encodings of members' faces in a pickle file
 #Developed: 24 June 2020
 #Developer: Ko Gi Hun
 
+# Initialise strings from config file
+config = configparser.ConfigParser()
+config.read('strings.config')
+
 #Initializing arg parser
 ap = argparse.ArgumentParser()
-ap.add_argument("-i", "--dataset", required=True, help = "path to input directory of faces + images")
-ap.add_argument("-e", "--encodings", required=True, help = "path dir to serialized db of facial encodings")
+ap.add_argument("-i", "--dataset", type=str, default=config['ENCODING']['path_known_faces'],
+                help = "path to input directory of faces + images")
+ap.add_argument("-e", "--encodings", type=str, default=config['MAIN']['path_encodings'],
+                help = "path dir to serialized db of facial encodings")
 ap.add_argument("-d", "--detection-method", type=str, default="cnn",
                 help = "face detection model to use: either 'hog' or 'cnn'")
 args = vars(ap.parse_args())
