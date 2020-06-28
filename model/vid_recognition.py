@@ -21,6 +21,7 @@ ap.add_argument("-i", "--input", required=True, help="path to the input stream v
 ap.add_argument("-o", "--output", type=str, help="path to output video")
 ap.add_argument("-y", "--display", type=int, default=1, help="whether or not to display output frame to screen")
 ap.add_argument("-d", "--detection_method", type=str, default="cnn", help="face detection model to use: either 'hog'/'cnn'")
+ap.add_argument("-s", "--sample_period", type=int, default=100, help="milliseconds between each sampled frame, default: 100")
 args = vars(ap.parse_args())
 
 def milli_to_timestamp(ms):
@@ -48,10 +49,14 @@ if __name__ == "__main__":
         if not success:
             logger.error("Can't receive frame from source file. Exiting...")
             break
+
         frame_count += 1
 
-        # Time stamping
         millisecond = int(vs.get(cv2.CAP_PROP_POS_MSEC))
+        if millisecond % args["sample_period"] != 0:
+            continue
+
+        # Time stamping
         timestamp = milli_to_timestamp(millisecond)
 
         # Frame conversion
@@ -76,6 +81,8 @@ if __name__ == "__main__":
             cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
             y = top - 15 if top - 15 > 15 else top + 15
             cv2.putText(frame, name, (left, y), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+
+        cv2.putText(frame, timestamp, (5, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
         if writer is None and args["output"] is not None:
             fourcc = cv2.VideoWriter_fourcc(*"MPEG")
