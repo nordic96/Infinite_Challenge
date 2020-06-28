@@ -9,6 +9,7 @@ import time
 import cv2
 from model import frame_recognition as fr
 from logger.base_logger import logger
+from utils.csv_logger import csv_logger
 
 # Description: Facial Recognition with video stream input
 # Developed Date: 25 June 2020
@@ -32,6 +33,8 @@ def milli_to_timestamp(ms):
     return timestamp
 
 if __name__ == "__main__":
+    c_log = csv_logger("log")
+    logger.info("output will be saved at [{}]".format(c_log.path()))
     logger.info('loading encodings')
     data = pickle.loads(open(args["encodings"], "rb").read())
 
@@ -39,6 +42,7 @@ if __name__ == "__main__":
     logger.info('initializing video stream...')
     vs = cv2.VideoCapture(args["input"])
     writer = None
+    episode = os.path.basename(args["input"]).split(".")[0]
     time.sleep(2.0)
 
     logger.info('video processing [{}] starts..'.format(args["input"]))
@@ -71,6 +75,8 @@ if __name__ == "__main__":
         names = []
         names = fr.process_recognition(names, data, encodings)
         logger.info('sampled_frame: {} | timestamp: {} | faces detected: {}'.format(frame_count, timestamp, names))
+        c_log.add_entry(episode, frame_count, timestamp, len(names), names)
+
 
         for((top, right, bottom, left), name) in zip(boxes, names):
             top = int(top * r)
