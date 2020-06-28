@@ -1,8 +1,11 @@
+import os.path
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import face_recognition
 import argparse
 import pickle
 import cv2
-from logger.base_logger import logger
+from logger import base_logger
 
 def process_recognition(names, data, encodings):
     # Recognition and Comparing faces in the database
@@ -31,7 +34,7 @@ if __name__ == "__main__":
     ap.add_argument("-d", "--detection-method", type=str, default="cnn")
     args = vars(ap.parse_args())
 
-    logger.info('loading encodings...')
+    base_logger.logger.info('loading encodings...')
     data = pickle.loads(open(args["encodings"], "rb").read())
 
     # loading the image that we want for recognition
@@ -40,7 +43,7 @@ if __name__ == "__main__":
 
     # Detecting the coordinatesof the bounding boxes corresponding to each face in the input image
     # then compute the facial embeddings for each face
-    logger.info("recognizing faces... for {}".format(args["image"]))
+    base_logger.logger.info("recognizing faces... for {}".format(args["image"]))
     boxes = face_recognition.face_locations(
         rgb,
         model=args["detection_method"]
@@ -57,5 +60,6 @@ if __name__ == "__main__":
         y = top - 15 if top - 15 > 15 else top + 15
         cv2.putText(image, name, (left, y), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
-    cv2.imshow("Image", image)
-    cv2.waitKey(0)
+    #cv2.imshow("Image", image)
+    cv2.imwrite("../test/result.jpg", image)
+    #cv2.waitKey(0)

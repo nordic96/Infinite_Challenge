@@ -1,3 +1,5 @@
 .idea/
 **/__pycache__/
 test/
+dataset/known_faces/*
+dataset/unknown_faces/*

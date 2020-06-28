@@ -1,13 +1,14 @@
-
-from imutils.video import VideoStream
+import os.path
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import face_recognition
 import argparse
 import imutils
 import pickle
 import time
 import cv2
+from model import frame_recognition as fr
 from logger.base_logger import logger
-import frame_recognition as fr
 
 # Description: Facial Recognition with video stream input
 # Developed Date: 25 June 2020
@@ -15,6 +16,7 @@ import frame_recognition as fr
 # Initializing arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-e", "--encodings", required=True, help="path to serialized db of facial encodings")
+ap.add_argument("-i", "--input", required=True, help="path to the input stream video file")
 ap.add_argument("-o", "--output", type=str, help="path to output video")
 ap.add_argument("-y", "--display", type=int, default=1, help="whether or not to display output frame to screen")
 ap.add_argument("-d", "--detection_method", type=str, default="cnn", help="face detection model to use: either 'hog'/'cnn'")
@@ -25,24 +27,32 @@ if __name__ == "__main__":
     data = pickle.loads(open(args["encodings"], "rb").read())
 
     #Initializing video stream
-    vs = VideoStream(src='test/test.mp4').start()
+    logger.info('initializing video stream...')
+    vs = cv2.VideoCapture(args["input"])
     writer = None
     time.sleep(2.0)
 
-    logger.info('video processing starts..')
-    while True:
-        frame = vs.read()
-
+    logger.info('video processing [{}] starts..'.format(args["input"]))
+    frame_count = 0
+    while vs.isOpened():
+        ret, frame = vs.read()
+        #logger.info(frame.shape)
+        if not ret:
+            logger.error("Can't receive frame from source file. Exiting...")
+            break
+        frame_count += 1
         # Frame conversion
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        rgb = imutils.resize(frame, width = 750)
+        rgb = imutils.resize(frame, width = 280)
         r = frame.shape[1] / float(rgb.shape[1])
 
         #Detection
         boxes = face_recognition.face_locations(rgb, model=args["detection_method"])
         encodings = face_recognition.face_encodings(rgb, boxes)
+
         names = []
         names = fr.process_recognition(names, data, encodings)
+        logger.info('frame: {}: faces detected: {}'.format(frame_count, names))
 
         for((top, right, bottom, left), name) in zip(boxes, names):
             top = int(top * r)
@@ -55,8 +65,13 @@ if __name__ == "__main__":
             cv2.putText(frame, name, (left, y), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
         if writer is None and args["output"] is not None:
-            fourcc = cv2.VideoWriter_fourcc(*"MJPG")
-            writer = cv2.VideoWriter(args["output"], fourcc, 20, (frame.shape[1], frame.shape[0]), True)
+            fourcc = cv2.VideoWriter_fourcc(*"MPEG")
+            writer = cv2.VideoWriter(
+                args["output"],
+                fourcc,
+                20.0,
+                (frame.shape[1], frame.shape[0]),
+                True)
 
         if writer is not None:
             writer.write(frame)
@@ -67,6 +82,7 @@ if __name__ == "__main__":
 
             if key == ord("q"):
                 break
+
     cv2.destroyAllWindows()
     vs.stop()
     logger.info('Stopped video writing..')
