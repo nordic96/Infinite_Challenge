@@ -108,7 +108,7 @@ def process_stream(video_stream, sample_period, detection_method, display):
 if __name__ == "__main__":
     # Initializing arguments
     ap = argparse.ArgumentParser()
-    ap.add_argument("-i", "--input", required=True, type=str, help="path to directory containing unprocessed episodes")
+    ap.add_argument("-i", "--input", required=True, type=str, help="path to unprocessed episode file")
     ap.add_argument("-y", "--display", type=int, default=1, help="whether or not to display output frame to screen")
     ap.add_argument("-d", "--detection_method", type=str, default="cnn",
                     help="skull detection model to use: either 'hog'/'cnn'")
