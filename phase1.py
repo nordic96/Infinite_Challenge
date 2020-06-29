@@ -6,10 +6,11 @@ import pickle
 import cv2
 import os
 import configparser
+import re
 
 # Main script for skull detection and extraction of relevant frames from episodes
 # Will be used in phase 1 for batch processing of the episodes
-# Developed Date: 28 June 2020
+# Developed Date: 30 June 2020
 
 # Initialise strings from config file
 config = configparser.ConfigParser()
@@ -24,6 +25,16 @@ ap.add_argument("-y", "--display", type=int, default=1, help="whether or not to 
 ap.add_argument("-d", "--detection_method", type=str, default="cnn", help="face detection model to use: either 'hog'/'cnn'")
 ap.add_argument("-s", "--sample_period", type=int, default=100, help="milliseconds between each sampled frame, default: 100")
 args = vars(ap.parse_args())
+
+
+def get_episode_number(filename):
+    # get base file name
+    episode_num = os.path.basename(filename)
+    # strip file extension
+    episode_num = episode_num.split('.')[0]
+    # strip non-digits
+    episode_num = re.sub('[^0-9]', '', episode_num)
+    return episode_num
 
 
 # returns the video stream of an unprocessed episode
@@ -42,7 +53,7 @@ def fetch_unprocessed_episode():
         os.rename(episode_src_path, episode_dst_path)
 
         # 4. return video as stream for processing
-        return episode.replace(".mp4", ""), cv2.VideoCapture(episode_dst_path)
+        return get_episode_number(episode_dst_path), cv2.VideoCapture(episode_dst_path)
     else:
         return None
 
@@ -51,9 +62,9 @@ def fetch_unprocessed_episode():
 def extract_and_save_skull_frames(video_stream, pickle_data, detection_method, sampling_period, output_directory):
     c_log = CsvLogger(output_directory)
     logger.info("processing video to extract skull frames...")
-    extracted_frames = vr.process_stream(video_stream, sampling_period, pickle_data, detection_method)
+    extracted_frames = vr.process_stream(video_stream, sampling_period, detection_method)
     for extracted_frame in extracted_frames:
-        output_filename = "{}.jpg".format(str(extracted_frame.frame_number))
+        output_filename = "{}.jpg".format(extracted_frame.timestamp.replace(":", "_"))
         logger.info("saving [{}]...".format(output_filename))
         cv2.imwrite(os.path.join(output_directory,output_filename), extracted_frame.frame)
         c_log.add_skull_entry(extracted_frame.frame_number, extracted_frame.timestamp, extracted_frame.coord)
@@ -74,10 +85,10 @@ if __name__ == "__main__":
 
         episode_number, vs = episode
         logger.info('processing episode [{}]...'.format(episode_number))
-        output_directory = os.path.join("local_temp", "extracted_images", episode_number)
+        output_directory = os.path.join("local_temp", "extracted_images", "episode{}".format(episode_number))
         if not os.path.exists(output_directory):
-            logger.debug('[{}] does not exist, making directory...'.format(output_directory))
-            os.mkdir(output_directory)
+            logger.info('[{}] does not exist, making directory...'.format(output_directory))
+            os.makedirs(output_directory)
 
         extract_and_save_skull_frames(
             vs,

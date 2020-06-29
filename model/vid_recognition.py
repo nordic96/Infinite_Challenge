@@ -40,8 +40,9 @@ def milli_to_timestamp(ms):
     return timestamp
 
 
+# temporarily uses face detection model before skull detection is complete
 def detect_skull(frame, detection_method):
-    # Frame conversion
+    # Frame scaling
     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     rgb = imutils.resize(frame, width=280)
     r = frame.shape[1] / float(rgb.shape[1])
@@ -50,13 +51,13 @@ def detect_skull(frame, detection_method):
     boxes = face_recognition.face_locations(rgb, model=detection_method)
 
     if len(boxes) > 0:
-        return boxes
+        return r, boxes
     else:
         return None
 
 
 # returns relevant frames and data (coordinates)
-def process_stream(video_stream, sample_period, pickle_data, detection_method):
+def process_stream(video_stream, sample_period, detection_method):
     extracted_frames = []
     while video_stream.isOpened():
         success, frame = video_stream.read()
@@ -73,33 +74,35 @@ def process_stream(video_stream, sample_period, pickle_data, detection_method):
 
         # Time stamping
         timestamp = milli_to_timestamp(millisecond)
-        skull_coords = detect_skull(frame, detection_method)
-        if skull_coords:
+
+        retval = detect_skull(frame, detection_method)
+        skull_coords = []
+        if retval:
+            resize_factor, skull_coords_resized = retval
+            for (top, right, bottom, left) in skull_coords_resized:
+                top = int(top * resize_factor)
+                right = int(right * resize_factor)
+                bottom = int(bottom * resize_factor)
+                left = int(left * resize_factor)
+                skull_coords.append((top, right, bottom, left))
             extracted_frames.append(ExtractedFrame(frame, frame_number, timestamp, skull_coords))
 
         logger.info('sampled_frame: {} | timestamp: {} | skulls detected: {}'.format(frame_number, timestamp, skull_coords))
 
+        for (top, right, bottom, left) in skull_coords:
+            cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
+            y = top - 15 if top - 15 > 15 else top + 15
+            cv2.putText(frame, "skull", (left, y), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
-
-            #for((top, right, bottom, left), name) in zip(boxes, names):
-            #   top = int(top * r)
-            #    right = int(right * r)
-            #    bottom = int(bottom * r)
-            #    left = int(left * r)
-
-            #    cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
-            #    y = top - 15 if top - 15 > 15 else top + 15
-            #    cv2.putText(frame, name, (left, y), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
-
-        #cv2.putText(frame, timestamp, (5, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
-
+        cv2.putText(frame, timestamp, (5, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
         #if args["display"] > 0:
-        #    cv2.imshow("Frame", frame)
-        #    key = cv2.waitKey(1) & 0xFF
-        #
-        #    if key == ord("q"):
-        #       break
-    #cv2.destroyAllWindows()
+        cv2.imshow("Frame", frame)
+        key = cv2.waitKey(1) & 0xFF
+
+        if key == ord("q"):
+            break
+
+    cv2.destroyAllWindows()
     return extracted_frames
 
 
