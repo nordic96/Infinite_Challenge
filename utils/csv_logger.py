@@ -1,23 +1,27 @@
 import csv
-import datetime
 import os
+from logger.base_logger import logger
 
 # Code for handling csv output data for project
 # Developed Date: 29 June 2020
 # Brian Fung
 
+skulls_filename = "skulls.csv"
+faces_filename = "faces.csv"
+
+
 class CsvLogger:
-    def __init__(self, output_directory):
-        logger_start_time = datetime.datetime.now()
-        output_directory = output_directory
-        output_file_name = logger_start_time.strftime("%d_%m_%Y_%H_%M.csv")
-        self.output_path = os.path.join(output_directory, output_file_name)
-        output_file = open(self.output_path, 'w')
-        self.writer = csv.writer(output_file)
-        self.writer.writerow(["episode_number", "frame_number", "timestamp", "number_of_members", "list_of_members"])
+    def __init__(self, csv_file_path):
+        self.skull_output_path = os.path.join(csv_file_path, skulls_filename)
+        self.faces_output_path = os.path.join(csv_file_path, faces_filename)
+        self.skull_writer = csv.writer(open(self.skull_output_path, 'a'))
+        self.faces_writer = csv.writer(open(self.faces_output_path, 'a'))
 
-    def add_entry(self, episode, frame, timestamp, member_count, members):
-        self.writer.writerow([episode, frame, timestamp, member_count, members])
+    def add_skull_entry(self, frame, timestamp, coordinate_list):
+        logger.info("updating [{}]...".format(self.skull_output_path))
+        self.skull_writer.writerow([frame, timestamp, coordinate_list])
 
-    def path(self):
-        return os.path.abspath(self.output_path)
+    def add_faces_entry(self, frame, timestamp, coordinate_dict):
+        logger.info("updating [{}]...".format(self.faces_output_path))
+        self.skull_writer.writerow([frame, timestamp, coordinate_dict])
+
