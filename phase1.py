@@ -12,20 +12,6 @@ import re
 # Will be used in phase 1 for batch processing of the episodes
 # Developed Date: 30 June 2020
 
-# Initialise strings from config file
-config = configparser.ConfigParser()
-config.read('strings.config')
-
-# Initialising arguments
-ap = argparse.ArgumentParser()
-ap.add_argument("-e", "--encodings", required=True, help="path to serialized db of facial encodings")
-ap.add_argument("-i", "--input", required=True, help="path to the input stream video file")
-ap.add_argument("-o", "--output", type=str, help="path to output video")
-ap.add_argument("-y", "--display", type=int, default=1, help="whether or not to display output frame to screen")
-ap.add_argument("-d", "--detection_method", type=str, default="cnn", help="face detection model to use: either 'hog'/'cnn'")
-ap.add_argument("-s", "--sample_period", type=int, default=100, help="milliseconds between each sampled frame, default: 100")
-args = vars(ap.parse_args())
-
 
 def get_episode_number(filename):
     # get base file name
@@ -59,10 +45,10 @@ def fetch_unprocessed_episode():
 
 
 # extracts frames with skull and saves frames and additional data on is a csv file in the specified directory
-def extract_and_save_skull_frames(video_stream, pickle_data, detection_method, sampling_period, output_directory):
+def extract_and_save_skull_frames(video_stream, detection_method, sampling_period, output_directory, display):
     c_log = CsvLogger(output_directory)
     logger.info("processing video to extract skull frames...")
-    extracted_frames = vr.process_stream(video_stream, sampling_period, detection_method)
+    extracted_frames = vr.process_stream(video_stream, sampling_period, detection_method, display)
     for extracted_frame in extracted_frames:
         output_filename = "{}.jpg".format(extracted_frame.timestamp.replace(":", "_"))
         logger.info("saving [{}]...".format(output_filename))
@@ -71,9 +57,20 @@ def extract_and_save_skull_frames(video_stream, pickle_data, detection_method, s
 
 
 if __name__ == "__main__":
-    # 1. Loads the encodings
-    logger.info('loading the encoding file: [{}]...'.format(args["encodings"]))
-    data = pickle.loads(open(args["encodings"], "rb").read())
+    # Initialise strings from config file
+    config = configparser.ConfigParser()
+    config.read('strings.config')
+
+    # Initialising arguments
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-i", "--input", required=True, help="path to the directory containing unprocessed episodes")
+    ap.add_argument("-o", "--output", required=True, help="path to the directory where extracted images will be saved")
+    ap.add_argument("-y", "--display", type=int, default=1, help="whether or not to display output frame to screen")
+    ap.add_argument("-d", "--detection_method", type=str, default="cnn",
+                    help="detection model to use: either 'hog'/'cnn'")
+    ap.add_argument("-s", "--sample_period", type=int, default=100,
+                    help="milliseconds between each sampled frame, default: 100")
+    args = vars(ap.parse_args())
 
     logger.info('start processing remaining unprocessed episode...')
     while True:
@@ -85,19 +82,16 @@ if __name__ == "__main__":
 
         episode_number, vs = episode
         logger.info('processing episode [{}]...'.format(episode_number))
-        output_directory = os.path.join("local_temp", "extracted_images", "episode{}".format(episode_number))
+        output_directory = os.path.join(args["output"], "episode{}".format(episode_number))
         if not os.path.exists(output_directory):
             logger.info('[{}] does not exist, making directory...'.format(output_directory))
             os.makedirs(output_directory)
 
         extract_and_save_skull_frames(
             vs,
-            data,
             args["detection_method"],
             args["sample_period"],
-            output_directory
+            output_directory,
+            args["display"]
         )
         logger.info('completed processing episode [{}].'.format(episode_number))
-
-
-
