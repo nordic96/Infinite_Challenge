@@ -3,6 +3,7 @@ challenge is infinite.
 
 # Project Description
 ## Data Pipeline
+![img_datapipeline](resources/images/data_pipeline.png)
 1. Skull Detector processes the episode video file & saves screenshots into a dir with the same name as video file (i.e. if video is named `ep120.mp4` then the directory that contains screenshots of skulls detected would be dir `ep120/`)
     * Also, skull detector script will save a csv file that contains the necessary information
         * When skull is detected (timestamp)
