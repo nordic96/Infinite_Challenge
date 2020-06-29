@@ -9,8 +9,6 @@ from logger.base_logger import logger
 # Last Modified: 30 June 2020
 
 
-
-
 class ExtractedFrame:
     def __init__(self, frame, frame_number, timestamp, coord):
         self.frame = frame
@@ -43,6 +41,25 @@ def detect_skull(frame, detection_method):
         return None
 
 
+def display_sampled_frame(frame, timestamp, skull_coords, display):
+    if display == 0:
+        pass
+
+    for (top, right, bottom, left) in skull_coords:
+        cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
+        y = top - 15 if top - 15 > 15 else top + 15
+        cv2.putText(frame, "skull", (left, y), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+
+    cv2.putText(frame, timestamp, (5, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+    cv2.imshow("Frame", frame)
+    key = cv2.waitKey(1) & 0xFF
+
+    if key == ord("q"):
+        return True
+    else:
+        return False
+
+
 # returns relevant frames and data (coordinates)
 def process_stream(video_stream, sample_period, detection_method, display):
     extracted_frames = []
@@ -62,6 +79,7 @@ def process_stream(video_stream, sample_period, detection_method, display):
         # Time stamping
         timestamp = milli_to_timestamp(millisecond)
 
+        # Determine skull coordinates
         retval = detect_skull(frame, detection_method)
         skull_coords = []
         if retval:
@@ -73,22 +91,17 @@ def process_stream(video_stream, sample_period, detection_method, display):
                 left = int(left * resize_factor)
                 skull_coords.append((top, right, bottom, left))
             extracted_frames.append(ExtractedFrame(frame, frame_number, timestamp, skull_coords))
-
         logger.info('sampled_frame: {} | timestamp: {} | skulls detected: {}'.format(frame_number, timestamp, skull_coords))
 
-        for (top, right, bottom, left) in skull_coords:
-            cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
-            y = top - 15 if top - 15 > 15 else top + 15
-            cv2.putText(frame, "skull", (left, y), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
-
-        cv2.putText(frame, timestamp, (5, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
-        if display != 0:
-            cv2.imshow("Frame", frame)
-        key = cv2.waitKey(1) & 0xFF
-        if key == ord("q"):
+        # Display squares on sampled frames where skulls are located
+        interrupted = display_sampled_frame(frame, timestamp, skull_coords, display)
+        if interrupted:
+            logger.info('processing of video stream interrupted.')
             break
 
-    cv2.destroyAllWindows()
+    if display != 0:
+        cv2.destroyAllWindows()
+
     return extracted_frames
 
 
