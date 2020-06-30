@@ -10,7 +10,8 @@ from logger.base_logger import logger
 
 
 class ExtractedFrame:
-    def __init__(self, frame, frame_number, timestamp, coord):
+    def __init__(self, episode_number, frame, frame_number, timestamp, coord):
+        self.episode_number = episode_number
         self.frame = frame
         self.frame_number = frame_number
         self.timestamp = timestamp
@@ -61,7 +62,7 @@ def display_sampled_frame(frame, timestamp, skull_coords, display):
 
 
 # returns relevant frames and data (coordinates)
-def process_stream(video_stream, sample_period, detection_method, display):
+def process_stream(episode_number, video_stream, sample_period, detection_method, display):
     extracted_frames = []
     while video_stream.isOpened():
         success, frame = video_stream.read()
@@ -90,7 +91,7 @@ def process_stream(video_stream, sample_period, detection_method, display):
                 bottom = int(bottom * resize_factor)
                 left = int(left * resize_factor)
                 skull_coords.append((top, right, bottom, left))
-            extracted_frames.append(ExtractedFrame(frame, frame_number, timestamp, skull_coords))
+            extracted_frames.append(ExtractedFrame(episode_number, frame, frame_number, timestamp, skull_coords))
         logger.info('sampled_frame: {} | timestamp: {} | skulls detected: {}'.format(frame_number, timestamp, skull_coords))
 
         # Display squares on sampled frames where skulls are located

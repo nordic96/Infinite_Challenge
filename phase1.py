@@ -2,7 +2,6 @@ from model import vid_recognition as vr
 from logger.base_logger import logger
 from utils.csv_logger import CsvLogger
 import argparse
-import pickle
 import cv2
 import os
 import configparser
@@ -23,37 +22,46 @@ def get_episode_number(filename):
     return episode_num
 
 
+# returns filepath of an unprocessed episode
+def select_unprocessed_episode(directory):
+    unprocessed_directory_path = os.path.join(directory, "episodes", "unprocessed")
+    processed_directory_path = os.path.join(directory, "episodes", "processed")
+    for ep in os.listdir(unprocessed_directory_path):
+        episode_path = os.path.join(unprocessed_directory_path, ep)
+        os.rename(episode_path, os.path.join(processed_directory_path, ep))
+        episode_path = os.path.join(processed_directory_path, ep)
+        return episode_path
+    return None
+
+
 # returns the video stream of an unprocessed episode
-def fetch_unprocessed_episode():
-    # 1. check list of unprocessed episodes
-    episode_directory_path = os.path.join(args["input"], "unprocessed")
-    episode_directory = os.listdir(episode_directory_path)
+def fetch_unprocessed_episode(episode_path):
+    episode_number = get_episode_number(episode_path)
+    vid_stream = cv2.VideoCapture(episode_path)
+    return episode_number, vid_stream
 
-    if len(episode_directory) > 0:
-        # 2. take an unprocessed episode from the list
-        episode = episode_directory[0]
-        episode_src_path = os.path.join(episode_directory_path, episode)
 
-        # 3. removed video from unprocessed episode list
-        episode_dst_path = os.path.join(args["input"], "processed", episode)
-        os.rename(episode_src_path, episode_dst_path)
-
-        # 4. return video as stream for processing
-        return get_episode_number(episode_dst_path), cv2.VideoCapture(episode_dst_path)
-    else:
-        return None
+def save_extracted_frame(extracted_frame, directory):
+    filename = "{}_{}.jpg".format(
+        extracted_frame.episode_number,
+        extracted_frame.timestamp.replace(':', '_')
+    )
+    dst_path = os.path.join(directory, "images", "unprocessed", filename)
+    cv2.imwrite(dst_path, extracted_frame.frame)
 
 
 # extracts frames with skull and saves frames and additional data on is a csv file in the specified directory
-def extract_and_save_skull_frames(video_stream, detection_method, sampling_period, output_directory, display):
-    c_log = CsvLogger(output_directory)
+def extract_and_save_skull_frames(video_stream, episode_number, detection_method, sampling_period, directory, display):
     logger.info("processing video to extract skull frames...")
-    extracted_frames = vr.process_stream(video_stream, sampling_period, detection_method, display)
+    extracted_frames = vr.process_stream(episode_number, video_stream, sampling_period, detection_method, display)
+
+    c_log = CsvLogger(directory)
+    logger.info('saving csv data to {}'.format(c_log.filename))
     for extracted_frame in extracted_frames:
-        output_filename = "{}.jpg".format(extracted_frame.timestamp.replace(":", "_"))
-        logger.info("saving [{}]...".format(output_filename))
-        cv2.imwrite(os.path.join(output_directory,output_filename), extracted_frame.frame)
-        c_log.add_skull_entry(extracted_frame.frame_number, extracted_frame.timestamp, extracted_frame.coord)
+        #save image
+        save_extracted_frame(extracted_frame, directory)
+        #add to data.csv
+        c_log.add_skull_entry(extracted_frame.episode_number, extracted_frame.timestamp, extracted_frame.coord)
 
 
 if __name__ == "__main__":
@@ -63,8 +71,8 @@ if __name__ == "__main__":
 
     # Initialising arguments
     ap = argparse.ArgumentParser()
-    ap.add_argument("-i", "--input", required=True, help="path to the directory containing unprocessed episodes")
-    ap.add_argument("-o", "--output", required=True, help="path to the directory where extracted images will be saved")
+    ap.add_argument("-w", "--working_directory", required=True,
+                    help="path to the directory containing episodes, images folder, and data.csv file")
     ap.add_argument("-y", "--display", type=int, default=1, help="whether or not to display output frame to screen")
     ap.add_argument("-d", "--detection_method", type=str, default="cnn",
                     help="detection model to use: either 'hog'/'cnn'")
@@ -74,24 +82,25 @@ if __name__ == "__main__":
 
     logger.info('start processing remaining unprocessed episode...')
     while True:
-        logger.info('attempting to fetch an unprocessed episode...')
-        episode = fetch_unprocessed_episode()
-        if episode is None:
+        logger.info('searching for unprocessed episode...')
+        path = select_unprocessed_episode(args['working_directory'])
+
+        if not path:
             logger.info('no unprocessed episodes found. exiting...')
             break
 
-        episode_number, vs = episode
-        logger.info('processing episode [{}]...'.format(episode_number))
-        output_directory = os.path.join(args["output"], "episode{}".format(episode_number))
-        if not os.path.exists(output_directory):
-            logger.info('[{}] does not exist, making directory...'.format(output_directory))
-            os.makedirs(output_directory)
+        logger.info('fetching unprocessed episode...')
+        episode_num, vid = fetch_unprocessed_episode(path)
+
+        logger.info('processing episode [{}]...'.format(episode_num))
 
         extract_and_save_skull_frames(
-            vs,
+            vid,
+            episode_num,
             args["detection_method"],
             args["sample_period"],
-            output_directory,
+            args["working_directory"],
             args["display"]
         )
-        logger.info('completed processing episode [{}].'.format(episode_number))
+
+        logger.info('completed processing episode [{}].'.format(episode_num))
