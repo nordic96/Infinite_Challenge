@@ -2,7 +2,7 @@ import subprocess
 
 YOLOV5_PATH = './dataset/skull/yolov5/'
 IMAGE_NUM = 10
-CONFIDENCE = 0.1
+CONFIDENCE = 0.7
 
 subprocess.call(['pip', 'install', '-r', f'{YOLOV5_PATH}requirements.txt']) # setup yolov5 environment
 print("setup complete")
