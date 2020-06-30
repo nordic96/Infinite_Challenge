@@ -5,21 +5,13 @@ import argparse
 import cv2
 import os
 import configparser
-import re
 
 # Main script for skull detection and extraction of relevant frames from episodes
 # Will be used in phase 1 for batch processing of the episodes
 # Developed Date: 30 June 2020
 
 
-def get_episode_number(filename):
-    # get base file name
-    episode_num = os.path.basename(filename)
-    # strip file extension
-    episode_num = episode_num.split('.')[0]
-    # strip non-digits
-    episode_num = re.sub('[^0-9]', '', episode_num)
-    return episode_num
+
 
 
 # returns filepath of an unprocessed episode
@@ -32,13 +24,6 @@ def select_unprocessed_episode(directory):
         episode_path = os.path.join(processed_directory_path, ep)
         return episode_path
     return None
-
-
-# returns the video stream of an unprocessed episode
-def fetch_unprocessed_episode(episode_path):
-    episode_number = get_episode_number(episode_path)
-    vid_stream = cv2.VideoCapture(episode_path)
-    return episode_number, vid_stream
 
 
 def save_extracted_frame(extracted_frame, directory):

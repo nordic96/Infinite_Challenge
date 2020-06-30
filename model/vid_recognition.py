@@ -1,6 +1,8 @@
 import face_recognition  # temporarily used in place of skull_detection
 import argparse
 import imutils
+import os
+import re
 import cv2
 from logger.base_logger import logger
 
@@ -26,6 +28,23 @@ def milli_to_timestamp(ms):
     return timestamp
 
 
+def get_episode_number(filename):
+    # get base file name
+    episode_num = os.path.basename(filename)
+    # strip file extension
+    episode_num = episode_num.split('.')[0]
+    # strip non-digits
+    episode_num = re.sub('[^0-9]', '', episode_num)
+    return episode_num
+
+
+# returns the video stream of an unprocessed episode
+def fetch_unprocessed_img(img_path):
+    ep, timestamp = get_metadata(img_path)
+    img = cv2.imread(img_path)
+    return ep, timestamp, img
+
+
 # temporarily uses face detection model before skull detection is complete
 def detect_skull(frame, detection_method):
     # Frame scaling
@@ -42,19 +61,22 @@ def detect_skull(frame, detection_method):
         return None
 
 
+def label_frame(frame, timestamp, boxes):
+    labelled = frame.copy()
+    for (top, right, bottom, left) in boxes:
+        cv2.rectangle(labelled, (left, top), (right, bottom), (0, 255, 0), 2)
+        y = top - 15 if top - 15 > 15 else top + 15
+        cv2.putText(labelled, "skull", (left, y), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+
+    cv2.putText(labelled, timestamp, (5, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+    return labelled
+
+
 def display_sampled_frame(frame, timestamp, skull_coords, display):
     if display == 0:
         pass
-
-    for (top, right, bottom, left) in skull_coords:
-        cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
-        y = top - 15 if top - 15 > 15 else top + 15
-        cv2.putText(frame, "skull", (left, y), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
-
-    cv2.putText(frame, timestamp, (5, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
-    cv2.imshow("Frame", frame)
+    cv2.imshow("Frame", label_frame(frame, timestamp, skull_coords))
     key = cv2.waitKey(1) & 0xFF
-
     if key == ord("q"):
         return True
     else:
@@ -62,7 +84,9 @@ def display_sampled_frame(frame, timestamp, skull_coords, display):
 
 
 # returns relevant frames and data (coordinates)
-def process_stream(episode_number, video_stream, sample_period, detection_method, display):
+def process_stream(video_path, sample_period, detection_method, display):
+    video_stream = cv2.VideoCapture(video_path)
+    episode_number = get_episode_number(video_path)
     extracted_frames = []
     while video_stream.isOpened():
         success, frame = video_stream.read()
@@ -117,8 +141,5 @@ if __name__ == "__main__":
                     help="milliseconds between each sampled frame, default: 100")
     args = vars(ap.parse_args())
 
-    logger.info('initializing video stream...')
-    vs = cv2.VideoCapture(args["input"])
-
     logger.info('video processing [{}] starts..'.format(args["input"]))
-    process_stream(vs, args["sample_period"], args["detection_method"], args["display"])
+    process_stream(args['input'], args["sample_period"], args["detection_method"], args["display"])
