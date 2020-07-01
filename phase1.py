@@ -36,9 +36,9 @@ def save_extracted_frame(extracted_frame, directory):
 
 
 # extracts frames with skull and saves frames and additional data on is a csv file in the specified directory
-def extract_and_save_skull_frames(video_stream, episode_number, detection_method, sampling_period, directory, display):
+def extract_and_save_skull_frames(path, detection_method, sampling_period, directory, display):
     logger.info("processing video to extract skull frames...")
-    extracted_frames = vr.process_stream(episode_number, video_stream, sampling_period, detection_method, display)
+    extracted_frames = vr.process_stream(path, sampling_period, detection_method, display)
 
     c_log = CsvLogger(directory)
     logger.info('saving csv data to {}'.format(c_log.filename))
