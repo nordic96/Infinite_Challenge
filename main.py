@@ -50,6 +50,5 @@ if __name__ == "__main__":
         encodings = face_recognition.face_encodings(rgb, boxes)
         # Initializing the list of names for each face detected
         # Recognition and Comparing faces in the database
-        names = []
-        names = fr.process_recognition(names, data, encodings)
+        names = fr.process_recognition(data, encodings)
         logger.info("detected known faces: {}".format(names))
