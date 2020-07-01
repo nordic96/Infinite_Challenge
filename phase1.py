@@ -66,6 +66,7 @@ if __name__ == "__main__":
     args = vars(ap.parse_args())
 
     logger.info('start processing remaining unprocessed episode...')
+
     while True:
         logger.info('searching for unprocessed episode...')
         path = select_unprocessed_episode(args['working_directory'])
@@ -74,18 +75,14 @@ if __name__ == "__main__":
             logger.info('no unprocessed episodes found. exiting...')
             break
 
-        logger.info('fetching unprocessed episode...')
-        episode_num, vid = fetch_unprocessed_episode(path)
-
-        logger.info('processing episode [{}]...'.format(episode_num))
+        logger.info('processing [{}]...'.format(path))
 
         extract_and_save_skull_frames(
-            vid,
-            episode_num,
+            path,
             args["detection_method"],
             args["sample_period"],
             args["working_directory"],
             args["display"]
         )
 
-        logger.info('completed processing episode [{}].'.format(episode_num))
+        logger.info('completed processing [{}].'.format(path))
