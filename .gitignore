@@ -1,2 +1,6 @@
 .idea/
-*.pyc
+**/__pycache__/
+test/
+dataset/known_faces/*
+dataset/unknown_faces/*
+>>>>>>> bfc5d9c706ac03fa3d33a745d09da4109262766f
