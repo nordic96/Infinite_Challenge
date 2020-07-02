@@ -103,7 +103,7 @@ def detect(save_img=False):
                         plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=3)
 
             # Print time (inference + NMS)
-            print('%sDone. (%.3fs)' % (s, t2 - t1))
+            # print('%sDone. (%.3fs)' % (s, t2 - t1))
 
             # Stream results
             if view_img:
@@ -127,8 +127,8 @@ def detect(save_img=False):
                         vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*opt.fourcc), fps, (w, h))
                     vid_writer.write(im0)
 
-    if save_txt or save_img:
-        print('Results saved to %s' % os.getcwd() + os.sep + out)
+    # if save_txt or save_img:
+    #     print('Results saved to %s' % os.getcwd() + os.sep + out)
         # if platform == 'darwin':  # MacOS
         #     os.system('open ' + save_path)
 
@@ -152,7 +152,7 @@ if __name__ == '__main__':
     parser.add_argument('--augment', action='store_true', help='augmented inference')
     opt = parser.parse_args()
     opt.img_size = check_img_size(opt.img_size)
-    print(opt)
+    # print(opt)
 
     with torch.no_grad():
         detect()
