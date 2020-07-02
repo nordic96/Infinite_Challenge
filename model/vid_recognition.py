@@ -1,11 +1,14 @@
 import subprocess
+
+import configparser
+import face_recognition  # temporarily used in place of skull_detection
 import argparse
 import imutils
 import os
 import re
 import cv2
-import configparser
 from logger.base_logger import logger
+from dataset.skull.yolov5.utils.utils import xywh2xyxy
 
 # Description: Skull Recognition with video stream input
 # Developed Date: 25 June 2020
@@ -25,7 +28,7 @@ def milli_to_timestamp(ms):
     h, ms = divmod(ms, 60*60*1000)
     m, ms = divmod(ms, 60*1000)
     s, ms = divmod(ms, 1000)
-    timestamp = "{}:{}:{}:{}".format(h,m,s,ms)
+    timestamp = "{}:{}:{}:{}".format(h, m, s, ms)
     return timestamp
 
 
@@ -39,15 +42,8 @@ def get_episode_number(filename):
     return episode_num
 
 
-# returns the video stream of an unprocessed episode
-def fetch_unprocessed_img(img_path):
-    ep, timestamp = get_metadata(img_path)
-    img = cv2.imread(img_path)
-    return ep, timestamp, img
-
-
 def detect_skull(frame, detection_method, config):
-    r = 1
+    r = 100
     yolov5_path = config.get("SKULL", "path_yolov5")
     cache_path = config.get("SKULL", "path_cache")
     result_path = config.get("SKULL", "path_result_cache")
@@ -59,11 +55,13 @@ def detect_skull(frame, detection_method, config):
         "--save-txt", "--out", result_path])
 
     boxes = []
-    coord_path = f"{cache_path}/skull_detect_cache.txt"
+    coord_path = f"{result_path}/skull_detect_cache.txt"
     if os.path.isfile(coord_path):
         with open(coord_path) as f:
             for line in f:
-                inner_list = [elt.strip() for elt in line.split(" ")].pop(0)
+                inner_list = [elt.strip() for elt in line.split(" ")]
+                inner_list = list(map(float, filter(None, inner_list[1:])))
+                inner_list = xywh2xyxy(inner_list)
                 boxes.append(inner_list)
 
     if len(boxes) > 0:
@@ -83,9 +81,7 @@ def label_frame(frame, timestamp, boxes):
     return labelled
 
 
-def display_sampled_frame(frame, timestamp, skull_coords, display):
-    if display == 0:
-        pass
+def display_sampled_frame(frame, timestamp, skull_coords):
     cv2.imshow("Frame", label_frame(frame, timestamp, skull_coords))
     key = cv2.waitKey(1) & 0xFF
     if key == ord("q"):
@@ -94,32 +90,35 @@ def display_sampled_frame(frame, timestamp, skull_coords, display):
         return False
 
 
+def calculate_skip_rate(vid, ms_skip_rate):
+    return int(vid.get(cv2.CAP_PROP_FPS) * (ms_skip_rate / 1000))
+
+
 # returns relevant frames and data (coordinates)
 def process_stream(video_path, sample_period, detection_method, display):
-    video_stream = cv2.VideoCapture(video_path)
-    episode_number = get_episode_number(video_path)
+    vid_cap = cv2.VideoCapture(video_path)
+    # initialize output list
     extracted_frames = []
-
-    config = configparser.ConfigParser()
-    config.read("../strings.ini")
-
-    while video_stream.isOpened():
-        success, frame = video_stream.read()
-
+    # processing parameters
+    episode_number = get_episode_number(video_path)
+    frame_skip_rate = calculate_skip_rate(vid_cap, sample_period)
+    while vid_cap.isOpened():
+        success, frame = vid_cap.read()
         if not success:
             logger.info("No more frames from source file. Exiting...")
             break
 
-        frame_number = int(video_stream.get(cv2.CAP_PROP_POS_FRAMES))
-        millisecond = int(video_stream.get(cv2.CAP_PROP_POS_MSEC))
-
-        if millisecond % sample_period != 0:
+        frame_number = int(vid_cap.get(cv2.CAP_PROP_POS_FRAMES))
+        millisecond = int(vid_cap.get(cv2.CAP_PROP_POS_MSEC))
+        if frame_number % frame_skip_rate != 0:
             continue
 
         # Time stamping
         timestamp = milli_to_timestamp(millisecond)
 
         # Determine skull coordinates
+        config=configparser.ConfigParser()
+        config.read('../strings.ini')
         retval = detect_skull(frame, detection_method, config)
         skull_coords = []
         if retval:
@@ -134,14 +133,10 @@ def process_stream(video_path, sample_period, detection_method, display):
         logger.info('sampled_frame: {} | timestamp: {} | skulls detected: {}'.format(frame_number, timestamp, skull_coords))
 
         # Display squares on sampled frames where skulls are located
-        interrupted = display_sampled_frame(frame, timestamp, skull_coords, display)
-        if interrupted:
-            logger.info('processing of video stream interrupted.')
-            break
+        if display == 1:
+            display_sampled_frame(frame, timestamp, skull_coords)
 
-    if display != 0:
-        cv2.destroyAllWindows()
-
+    cv2.destroyAllWindows()
     return extracted_frames
 
 
@@ -152,7 +147,7 @@ if __name__ == "__main__":
     ap.add_argument("-y", "--display", type=int, default=1, help="whether or not to display output frame to screen")
     ap.add_argument("-d", "--detection_method", type=str, default="cnn",
                     help="skull detection model to use: either 'hog'/'cnn'")
-    ap.add_argument("-s", "--sample_period", type=int, default=100,
+    ap.add_argument("-s", "--sample_period", type=int, default=1000,
                     help="milliseconds between each sampled frame, default: 100")
     args = vars(ap.parse_args())
 
