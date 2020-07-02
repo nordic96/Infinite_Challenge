@@ -2,9 +2,9 @@ import argparse
 
 import torch.backends.cudnn as cudnn
 
-from utils import google_utils
-from utils.datasets import *
-from utils.utils import *
+from dataset.skull.yolov5.utils import google_utils
+from dataset.skull.yolov5.utils.datasets import *
+from dataset.skull.yolov5.utils.utils import *
 
 
 def detect(save_img=False):

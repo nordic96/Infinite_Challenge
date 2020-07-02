@@ -1,9 +1,10 @@
-import face_recognition  # temporarily used in place of skull_detection
+import subprocess
 import argparse
-import imutils
+# import imutils
 import os
 import re
 import cv2
+import configparser
 from logger.base_logger import logger
 
 # Description: Skull Recognition with video stream input
@@ -45,15 +46,23 @@ def fetch_unprocessed_img(img_path):
     return ep, timestamp, img
 
 
-# temporarily uses face detection model before skull detection is complete
-def detect_skull(frame, detection_method):
-    # Frame scaling
-    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    rgb = imutils.resize(frame, width=280)
-    r = frame.shape[1] / float(rgb.shape[1])
+def detect_skull(frame, detection_method, config):
+    r = 1
+    yolov5_path = config['path_yolov5']
+    cache_path = config['path_cache']
+    cv2.imwrite(f"{cache_path}/skull_detect_cache", frame)
+    subprocess.call([
+        'python', f'{yolov5_path}/detect.py', '--weights', f"{yolov5_path}/weights/last_yolov5s_results.pt",
+        '--img', config['image_num'], '--conf', config['confidence'], '--source', f'{cache_path}',
+        "--save-txt", '--out', f'{cache_path}'])
 
-    # Detection
-    boxes = face_recognition.face_locations(rgb, model=detection_method)
+    boxes = []
+    coord_path = f'{cache_path}/skull_detect_cache.txt'
+    if os.path.isfile(coord_path):
+        with open(coord_path) as f:
+            for line in f:
+                inner_list = [elt.strip() for elt in line.split(' ')].pop(0)
+                boxes.append(inner_list)
 
     if len(boxes) > 0:
         return r, boxes
@@ -88,6 +97,7 @@ def process_stream(video_path, sample_period, detection_method, display):
     video_stream = cv2.VideoCapture(video_path)
     episode_number = get_episode_number(video_path)
     extracted_frames = []
+    skull_config = configparser.ConfigParser().read('example.ini')['SKULL']
     while video_stream.isOpened():
         success, frame = video_stream.read()
 
@@ -105,7 +115,7 @@ def process_stream(video_path, sample_period, detection_method, display):
         timestamp = milli_to_timestamp(millisecond)
 
         # Determine skull coordinates
-        retval = detect_skull(frame, detection_method)
+        retval = detect_skull(frame, detection_method, skull_config)
         skull_coords = []
         if retval:
             resize_factor, skull_coords_resized = retval
