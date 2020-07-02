@@ -37,7 +37,7 @@ def process_image(img_path, data, detection_method, directory, display):
 if __name__ == "__main__":
     # Initialise strings from config file
     config = configparser.ConfigParser()
-    config.read('strings.config')
+    config.read('strings.ini')
 
     # Initialising arguments
     ap = argparse.ArgumentParser()

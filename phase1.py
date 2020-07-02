@@ -52,7 +52,7 @@ def extract_and_save_skull_frames(path, detection_method, sampling_period, direc
 if __name__ == "__main__":
     # Initialise strings from config file
     config = configparser.ConfigParser()
-    config.read('strings.config')
+    config.read('strings.ini')
 
     # Initialising arguments
     ap = argparse.ArgumentParser()
