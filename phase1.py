@@ -10,10 +10,6 @@ import configparser
 # Will be used in phase 1 for batch processing of the episodes
 # Developed Date: 30 June 2020
 
-
-
-
-
 # returns filepath of an unprocessed episode
 def select_unprocessed_episode(directory):
     unprocessed_directory_path = os.path.join(directory, "episodes", "unprocessed")
@@ -66,6 +62,12 @@ if __name__ == "__main__":
     args = vars(ap.parse_args())
 
     logger.info('start processing remaining unprocessed episode...')
+
+    # creates some necessary files
+    os.makedirs(os.path.join(args['working_directory'], 'episodes', 'processed'), exist_ok=True)
+    os.makedirs(os.path.join(args['working_directory'], 'episodes', 'unprocessed'), exist_ok=True)
+    os.makedirs(os.path.join(args['working_directory'], 'images', 'processed'), exist_ok=True)
+    os.makedirs(os.path.join(args['working_directory'], 'images', 'unprocessed'), exist_ok=True)
 
     while True:
         logger.info('searching for unprocessed episode...')
