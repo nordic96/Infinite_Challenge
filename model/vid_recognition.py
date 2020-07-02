@@ -72,9 +72,7 @@ def label_frame(frame, timestamp, boxes):
     return labelled
 
 
-def display_sampled_frame(frame, timestamp, skull_coords, display):
-    if display == 0:
-        pass
+def display_sampled_frame(frame, timestamp, skull_coords):
     cv2.imshow("Frame", label_frame(frame, timestamp, skull_coords))
     key = cv2.waitKey(1) & 0xFF
     if key == ord("q"):
@@ -119,13 +117,12 @@ def process_stream(video_path, sample_period, detection_method, display):
         logger.info('sampled_frame: {} | timestamp: {} | skulls detected: {}'.format(frame_number, timestamp, skull_coords))
 
         # Display squares on sampled frames where skulls are located
-        interrupted = display_sampled_frame(frame, timestamp, skull_coords, display)
-        if interrupted:
-            logger.info('processing of video stream interrupted.')
-            break
-
-    if display != 0:
-        cv2.destroyAllWindows()
+        if display == 1:
+            interrupted = display_sampled_frame(frame, timestamp, skull_coords)
+            if interrupted:
+                logger.info('processing of video stream interrupted.')
+                break
+            cv2.destroyAllWindows()
 
     return extracted_frames
 
