@@ -2,9 +2,9 @@ import argparse
 
 import torch.backends.cudnn as cudnn
 
-from dataset.skull.yolov5.utils import google_utils
-from dataset.skull.yolov5.utils.datasets import *
-from dataset.skull.yolov5.utils.utils import *
+from utils import google_utils
+from utils.datasets import *
+from utils.utils import *
 
 
 def detect(save_img=False):
@@ -129,8 +129,8 @@ def detect(save_img=False):
 
     if save_txt or save_img:
         print('Results saved to %s' % os.getcwd() + os.sep + out)
-        if platform == 'darwin':  # MacOS
-            os.system('open ' + save_path)
+        # if platform == 'darwin':  # MacOS
+        #     os.system('open ' + save_path)
 
     print('Done. (%.3fs)' % (time.time() - t0))
 

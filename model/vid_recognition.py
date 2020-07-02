@@ -1,6 +1,6 @@
 import subprocess
 import argparse
-# import imutils
+import imutils
 import os
 import re
 import cv2
@@ -48,20 +48,22 @@ def fetch_unprocessed_img(img_path):
 
 def detect_skull(frame, detection_method, config):
     r = 1
-    yolov5_path = config['path_yolov5']
-    cache_path = config['path_cache']
-    cv2.imwrite(f"{cache_path}/skull_detect_cache", frame)
-    subprocess.call([
-        'python', f'{yolov5_path}/detect.py', '--weights', f"{yolov5_path}/weights/last_yolov5s_results.pt",
-        '--img', config['image_num'], '--conf', config['confidence'], '--source', f'{cache_path}',
-        "--save-txt", '--out', f'{cache_path}'])
+    yolov5_path = config.get("SKULL", "path_yolov5")
+    cache_path = config.get("SKULL", "path_cache")
+    result_path = config.get("SKULL", "path_result_cache")
+    cv2.imwrite(f"{cache_path}/skull_detect_cache.png", frame)
+
+    subprocess.check_call([
+        "python", f"{yolov5_path}/detect.py", "--weights", f"{yolov5_path}/weights/last_yolov5s_results.pt",
+        "--img", config.get("SKULL", "image_num"), "--conf", config.get("SKULL","confidence"), "--source", cache_path,
+        "--save-txt", "--out", result_path])
 
     boxes = []
-    coord_path = f'{cache_path}/skull_detect_cache.txt'
+    coord_path = f"{cache_path}/skull_detect_cache.txt"
     if os.path.isfile(coord_path):
         with open(coord_path) as f:
             for line in f:
-                inner_list = [elt.strip() for elt in line.split(' ')].pop(0)
+                inner_list = [elt.strip() for elt in line.split(" ")].pop(0)
                 boxes.append(inner_list)
 
     if len(boxes) > 0:
@@ -97,7 +99,10 @@ def process_stream(video_path, sample_period, detection_method, display):
     video_stream = cv2.VideoCapture(video_path)
     episode_number = get_episode_number(video_path)
     extracted_frames = []
-    skull_config = configparser.ConfigParser().read('example.ini')['SKULL']
+
+    config = configparser.ConfigParser()
+    config.read("../strings.ini")
+
     while video_stream.isOpened():
         success, frame = video_stream.read()
 
@@ -115,7 +120,7 @@ def process_stream(video_path, sample_period, detection_method, display):
         timestamp = milli_to_timestamp(millisecond)
 
         # Determine skull coordinates
-        retval = detect_skull(frame, detection_method, skull_config)
+        retval = detect_skull(frame, detection_method, config)
         skull_coords = []
         if retval:
             resize_factor, skull_coords_resized = retval
