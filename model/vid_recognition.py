@@ -24,7 +24,7 @@ def milli_to_timestamp(ms):
     h, ms = divmod(ms, 60*60*1000)
     m, ms = divmod(ms, 60*1000)
     s, ms = divmod(ms, 1000)
-    timestamp = "{}:{}:{}:{}".format(h,m,s,ms)
+    timestamp = "{}:{}:{}:{}".format(h, m, s, ms)
     return timestamp
 
 
@@ -36,13 +36,6 @@ def get_episode_number(filename):
     # strip non-digits
     episode_num = re.sub('[^0-9]', '', episode_num)
     return episode_num
-
-
-# returns the video stream of an unprocessed episode
-def fetch_unprocessed_img(img_path):
-    ep, timestamp = get_metadata(img_path)
-    img = cv2.imread(img_path)
-    return ep, timestamp, img
 
 
 # temporarily uses face detection model before skull detection is complete
@@ -81,22 +74,27 @@ def display_sampled_frame(frame, timestamp, skull_coords):
         return False
 
 
+def calculate_skip_rate(vid, ms_skip_rate):
+    return int(vid.get(cv2.CAP_PROP_FPS) * (ms_skip_rate / 1000))
+
+
 # returns relevant frames and data (coordinates)
 def process_stream(video_path, sample_period, detection_method, display):
-    video_stream = cv2.VideoCapture(video_path)
-    episode_number = get_episode_number(video_path)
+    vid_cap = cv2.VideoCapture(video_path)
+    # initialize output list
     extracted_frames = []
-    while video_stream.isOpened():
-        success, frame = video_stream.read()
-
+    # processing parameters
+    episode_number = get_episode_number(video_path)
+    frame_skip_rate = calculate_skip_rate(vid_cap, sample_period)
+    while vid_cap.isOpened():
+        success, frame = vid_cap.read()
         if not success:
             logger.info("No more frames from source file. Exiting...")
             break
 
-        frame_number = int(video_stream.get(cv2.CAP_PROP_POS_FRAMES))
-        millisecond = int(video_stream.get(cv2.CAP_PROP_POS_MSEC))
-
-        if millisecond % sample_period != 0:
+        frame_number = int(vid_cap.get(cv2.CAP_PROP_POS_FRAMES))
+        millisecond = int(vid_cap.get(cv2.CAP_PROP_POS_MSEC))
+        if frame_number % frame_skip_rate != 0:
             continue
 
         # Time stamping
@@ -118,12 +116,9 @@ def process_stream(video_path, sample_period, detection_method, display):
 
         # Display squares on sampled frames where skulls are located
         if display == 1:
-            interrupted = display_sampled_frame(frame, timestamp, skull_coords)
-            if interrupted:
-                logger.info('processing of video stream interrupted.')
-                break
-            cv2.destroyAllWindows()
+            display_sampled_frame(frame, timestamp, skull_coords)
 
+    cv2.destroyAllWindows()
     return extracted_frames
 
 
