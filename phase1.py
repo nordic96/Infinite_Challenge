@@ -32,9 +32,9 @@ def save_extracted_frame(extracted_frame, directory):
 
 
 # extracts frames with skull and saves frames and additional data on is a csv file in the specified directory
-def extract_and_save_skull_frames(path, detection_method, sampling_period, directory, display):
+def extract_and_save_skull_frames(path, directory, display):
     logger.info("processing video to extract skull frames...")
-    extracted_frames = vr.process_stream(path, sampling_period, detection_method, display)
+    extracted_frames = vr.process_stream(path, display)
 
     c_log = CsvLogger(directory)
     logger.info('saving csv data to {}'.format(c_log.filename))
@@ -57,8 +57,8 @@ if __name__ == "__main__":
     ap.add_argument("-y", "--display", type=int, default=0, help="whether or not to display output frame to screen")
     ap.add_argument("-d", "--detection_method", type=str, default="cnn",
                     help="detection model to use: either 'hog'/'cnn'")
-    ap.add_argument("-s", "--sample_period", type=int, default=100,
-                    help="milliseconds between each sampled frame, default: 100")
+    # ap.add_argument("-s", "--sample_period", type=int, default=100,
+    #                 help="milliseconds between each sampled frame, default: 100")
     args = vars(ap.parse_args())
 
     logger.info('start processing remaining unprocessed episode...')
@@ -81,8 +81,6 @@ if __name__ == "__main__":
 
         extract_and_save_skull_frames(
             path,
-            args["detection_method"],
-            args["sample_period"],
             args["working_directory"],
             args["display"]
         )
