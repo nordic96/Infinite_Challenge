@@ -1,14 +1,11 @@
 import subprocess
-
 import configparser
-import face_recognition  # temporarily used in place of skull_detection
 import argparse
-import imutils
 import os
 import re
 import cv2
+
 from logger.base_logger import logger
-from dataset.skull.yolov5.utils.utils import xywh2xyxy
 
 # Description: Skull Recognition with video stream input
 # Developed Date: 25 June 2020
@@ -43,7 +40,7 @@ def get_episode_number(filename):
 
 
 def detect_skull(frame, detection_method, config):
-    r = 100
+    r = frame.shape
     yolov5_path = config.get("SKULL", "path_yolov5")
     cache_path = config.get("SKULL", "path_cache")
     result_path = config.get("SKULL", "path_result_cache")
@@ -61,8 +58,13 @@ def detect_skull(frame, detection_method, config):
             for line in f:
                 inner_list = [elt.strip() for elt in line.split(" ")]
                 inner_list = list(map(float, filter(None, inner_list[1:])))
-                inner_list = xywh2xyxy(inner_list)
-                boxes.append(inner_list)
+                # Convert nx4 boxes from xywh to yxyx
+                assert len(inner_list) == 4
+                x1 = (2*inner_list[0]+inner_list[2])/2
+                x2 = x1 - inner_list[2]
+                y2 = (2*inner_list[1]+inner_list[3])/2
+                y1 = y2 - inner_list[3]
+                boxes.append([y1,x1,y2,x2])
 
     if len(boxes) > 0:
         return r, boxes
@@ -124,10 +126,10 @@ def process_stream(video_path, sample_period, detection_method, display):
         if retval:
             resize_factor, skull_coords_resized = retval
             for (top, right, bottom, left) in skull_coords_resized:
-                top = int(top * resize_factor)
-                right = int(right * resize_factor)
-                bottom = int(bottom * resize_factor)
-                left = int(left * resize_factor)
+                top = int(top * resize_factor[0])
+                right = int(right * resize_factor[1])
+                bottom = int(bottom * resize_factor[0])
+                left = int(left * resize_factor[1])
                 skull_coords.append((top, right, bottom, left))
             extracted_frames.append(ExtractedFrame(episode_number, frame, frame_number, timestamp, skull_coords))
         logger.info('sampled_frame: {} | timestamp: {} | skulls detected: {}'.format(frame_number, timestamp, skull_coords))
