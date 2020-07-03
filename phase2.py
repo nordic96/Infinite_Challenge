@@ -44,7 +44,7 @@ if __name__ == "__main__":
     ap.add_argument("-e", "--encodings", required=True, help="path to serialized db of facial encodings")
     ap.add_argument("-w", "--working_directory", required=True,
                     help="path to the directory containing episodes, images folder, and data.csv file")
-    ap.add_argument("-y", "--display", type=int, default=1, help="whether or not to display output frame to screen")
+    ap.add_argument("-y", "--display", type=int, default=0, help="whether or not to display output frame to screen")
     ap.add_argument("-d", "--detection_method", type=str, default="cnn",
                     help="detection model to use: either 'hog'/'cnn'")
     args = vars(ap.parse_args())
