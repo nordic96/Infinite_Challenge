@@ -80,7 +80,7 @@ def detect(save_img=False):
                 p, s, im0 = path, '', im0s
 
             save_path = str(Path(out) / Path(p).name)
-            s += '%gx%g ' % img.shape[2:]  # print string
+            # s += '%gx%g ' % img.shape[2:]  # print string
             gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  #  normalization gain whwh
             if det is not None and len(det):
                 # Rescale boxes from img_size to im0 size
@@ -90,6 +90,7 @@ def detect(save_img=False):
                 for c in det[:, -1].unique():
                     n = (det[:, -1] == c).sum()  # detections per class
                     s += '%g %ss, ' % (n, names[int(c)])  # add to string
+                print(s)
 
                 # Write results
                 for *xyxy, conf, cls in det:
@@ -103,7 +104,7 @@ def detect(save_img=False):
                         plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=3)
 
             # Print time (inference + NMS)
-            print('%sDone. (%.3fs)' % (s, t2 - t1))
+            # print('%sDone. (%.3fs)' % (s, t2 - t1))
 
             # Stream results
             if view_img:
@@ -127,12 +128,12 @@ def detect(save_img=False):
                         vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*opt.fourcc), fps, (w, h))
                     vid_writer.write(im0)
 
-    if save_txt or save_img:
-        print('Results saved to %s' % os.getcwd() + os.sep + out)
-        if platform == 'darwin':  # MacOS
-            os.system('open ' + save_path)
+    # if save_txt or save_img:
+    #     print('Results saved to %s' % os.getcwd() + os.sep + out)
+        # if platform == 'darwin':  # MacOS
+        #     os.system('open ' + save_path)
 
-    print('Done. (%.3fs)' % (time.time() - t0))
+    print('Done.')
 
 
 if __name__ == '__main__':
@@ -152,7 +153,7 @@ if __name__ == '__main__':
     parser.add_argument('--augment', action='store_true', help='augmented inference')
     opt = parser.parse_args()
     opt.img_size = check_img_size(opt.img_size)
-    print(opt)
+    # print(opt)
 
     with torch.no_grad():
         detect()
