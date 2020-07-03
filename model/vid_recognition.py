@@ -1,9 +1,10 @@
-import face_recognition  # temporarily used in place of skull_detection
+import subprocess
+import configparser
 import argparse
-import imutils
 import os
 import re
 import cv2
+
 from logger.base_logger import logger
 
 # Description: Skull Recognition with video stream input
@@ -38,16 +39,41 @@ def get_episode_number(filename):
     return episode_num
 
 
-# temporarily uses face detection model before skull detection is complete
-def detect_skull(frame, detection_method):
-    # Frame scaling
-    rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    rgb = imutils.resize(frame, width=280)
-    r = frame.shape[1] / float(rgb.shape[1])
-
-    # Detection
-    boxes = face_recognition.face_locations(rgb, model=detection_method)
-
+def detect_skull(frame, config, timestamp):
+    # resize_factor format: [height, width, channel]
+    r = frame.shape
+    # Get paths
+    yolov5_path = config.get("SKULL", "path_yolov5")
+    cache_path = config.get("SKULL", "path_cache")
+    result_path = config.get("SKULL", "path_result_cache")
+    coord_path = f"{result_path}/skull_detect_cache.txt"
+    cv2.imwrite(f"{cache_path}/skull_detect_cache.png", frame)
+    # Bash command to yolov5 detect.py for object detection in frame
+    print(f"\nProcessing frame: {timestamp}")
+    subprocess.check_call([
+        "python", f"{yolov5_path}/detect.py",
+        "--weights", f"{yolov5_path}/weights/last_yolov5s_results.pt",
+        "--img", config.get("SKULL", "image_num"),
+        "--conf", config.get("SKULL","confidence"),
+        "--source", cache_path,
+        "--save-txt",
+        "--out", result_path])
+    # Read skull coordinates from cached result
+    boxes = []
+    if os.path.isfile(coord_path):
+        with open(coord_path) as f:
+            for line in f:
+                inner_list = [elt.strip() for elt in line.split(" ")]
+                inner_list = list(map(float, filter(None, inner_list[1:])))
+                # Convert nx4 boxes from xywh to yxyx
+                # Original: [x_center, y_center, width, height]
+                # Output: [tpo_y, right_x, bottom_y, left_x]
+                assert len(inner_list) == 4
+                x1 = (2 * inner_list[0] + inner_list[2]) / 2
+                x2 = x1 - inner_list[2]
+                y2 = (2 * inner_list[1] + inner_list[3]) / 2
+                y1 = y2 - inner_list[3]
+                boxes.append([y1, x1, y2, x2])
     if len(boxes) > 0:
         return r, boxes
     else:
@@ -79,13 +105,15 @@ def calculate_skip_rate(vid, ms_skip_rate):
 
 
 # returns relevant frames and data (coordinates)
-def process_stream(video_path, sample_period, detection_method, display):
+def process_stream(video_path, display):
     vid_cap = cv2.VideoCapture(video_path)
     # initialize output list
     extracted_frames = []
     # processing parameters
+    config = configparser.ConfigParser()
+    config.read('../strings.ini')
     episode_number = get_episode_number(video_path)
-    frame_skip_rate = calculate_skip_rate(vid_cap, sample_period)
+    frame_skip_rate = calculate_skip_rate(vid_cap, int(config.get("SKULL", "sample_rate")))
     while vid_cap.isOpened():
         success, frame = vid_cap.read()
         if not success:
@@ -101,15 +129,15 @@ def process_stream(video_path, sample_period, detection_method, display):
         timestamp = milli_to_timestamp(millisecond)
 
         # Determine skull coordinates
-        retval = detect_skull(frame, detection_method)
+        retval = detect_skull(frame, config, timestamp)
         skull_coords = []
         if retval:
             resize_factor, skull_coords_resized = retval
             for (top, right, bottom, left) in skull_coords_resized:
-                top = int(top * resize_factor)
-                right = int(right * resize_factor)
-                bottom = int(bottom * resize_factor)
-                left = int(left * resize_factor)
+                top = int(top * resize_factor[0])
+                right = int(right * resize_factor[1])
+                bottom = int(bottom * resize_factor[0])
+                left = int(left * resize_factor[1])
                 skull_coords.append((top, right, bottom, left))
             extracted_frames.append(ExtractedFrame(episode_number, frame, frame_number, timestamp, skull_coords))
         logger.info('sampled_frame: {} | timestamp: {} | skulls detected: {}'.format(frame_number, timestamp, skull_coords))
@@ -127,11 +155,11 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("-i", "--input", required=True, type=str, help="path to unprocessed episode file")
     ap.add_argument("-y", "--display", type=int, default=1, help="whether or not to display output frame to screen")
-    ap.add_argument("-d", "--detection_method", type=str, default="cnn",
-                    help="skull detection model to use: either 'hog'/'cnn'")
-    ap.add_argument("-s", "--sample_period", type=int, default=100,
-                    help="milliseconds between each sampled frame, default: 100")
+    # ap.add_argument("-d", "--detection_method", type=str, default="cnn",
+    #                 help="skull detection model to use: either 'hog'/'cnn'")
+    # ap.add_argument("-s", "--sample_period", type=int, default=1300,
+    #                 help="milliseconds between each sampled frame, default: 100")
     args = vars(ap.parse_args())
 
     logger.info('video processing [{}] starts..'.format(args["input"]))
-    process_stream(args['input'], args["sample_period"], args["detection_method"], args["display"])
+    process_stream(args['input'], args["display"])
