@@ -3,4 +3,4 @@ opencv-python
 imutils
 pickle-mixin
 pyodbc
-pandas
+pandas==1.0.5

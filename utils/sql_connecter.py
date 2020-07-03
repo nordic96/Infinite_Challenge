@@ -3,6 +3,11 @@ import argparse
 import csv
 import configparser
 import pandas as pd
+from logger.base_logger import logger
+
+# Description: Connects to SQL Server and execute bulk insert & other queries
+# Developed Date: 3 Jul 2020
+# Developer: Ko Gi Hun
 
 # Initialise strings from config file
 config = configparser.ConfigParser()
@@ -18,6 +23,7 @@ CONN_STRING = 'DRIVER={ODBC Driver 17 for SQL Server}' \
               + ';SERVER={{{}}}; DATABASE={{{}}};'.format(SERVER_ENDPOINT, DB_NAME) \
               + 'UID={{{}}}; PWD={{{}}}'.format(USER_NAME, DB_PW)
 
+
 # Description: SQL Connector for AWS RDS
 # Developed Date: 2 Jul 2020
 # Developer: Ko Gi Hun
@@ -25,7 +31,10 @@ CONN_STRING = 'DRIVER={ODBC Driver 17 for SQL Server}' \
 
 class SqlConnector:
     def __init__(self, file_path):
-        self.conn = pyodbc.connect(CONN_STRING)
+        try:
+            self.conn = pyodbc.connect(CONN_STRING)
+        except pyodbc.Error as ex:
+            logger.error(ex)
         self.cursor = self.conn.cursor()
         self.file_path = file_path
 
@@ -37,32 +46,36 @@ class SqlConnector:
         elif type == 'INSERT':
             self.conn.commit()
 
-    def insert_skull_info(self):
-        with open(self.file_path, 'r') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                print(row)
-        return None
+    def bulk_insert_csv(self, table_name, header):
+        try:
+            # Reading from CSV file
+            df = pd.read_csv(self.file_path, encoding='utf8', header=header)
+            df = df.values.tolist()
+        except pd.io.common.EmptyDataError as ex:
+            logger.error(ex)
 
-    def insert_skull_info_test(self, header):
-        df= pd.read_csv(self.file_path, header=header)
-        for index, row in df.iterrows():
-            print(row)
+        logger.info('Successfully read rows from CSV file {}'.format(self.file_path))
+        no_rows = 0
+        for row in df:
+            logger.info(row)
+            no_rows += 1
+        try:
+            # Performing Bulk Insert into RDS
+            string = '''INSERT INTO {} VALUES (?, ?, ?)'''.format(table_name)
+            logger.info(string)
+            result = self.cursor.executemany(string, df)
+            self.cursor.commit()
+        except pyodbc.Error as ex:
+            logger.error(ex)
+        logger.info('Affected rows: {}'.format(no_rows))
 
-        statement = "INSERT INTO skull VALUES ('{}', '{}', {});".format(row[0], row[1], row[2])
-        print(statement)
-        self.execute(statement, 'INSERT')
-        self.cursor.commit()
-        return None
 
-    def close(self):
-        self.conn.close()
-
-
+# Main function for testing
 ap = argparse.ArgumentParser()
 ap.add_argument("-i", "--input", required=True, help="input directory for csv file")
 args = vars(ap.parse_args())
 
 if __name__ == '__main__':
     sqlconn = SqlConnector(args['input'])
-    sqlconn.insert_skull_info_test(None)
+    # Provide header if csv file includes any
+    sqlconn.bulk_insert_csv('skull', header=None)
