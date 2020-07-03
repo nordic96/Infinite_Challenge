@@ -39,7 +39,7 @@ def get_episode_number(filename):
     return episode_num
 
 
-def detect_skull(frame, config):
+def detect_skull(frame, config, timestamp):
     # resize_factor format: [height, width, channel]
     r = frame.shape
     # Get paths
@@ -49,6 +49,7 @@ def detect_skull(frame, config):
     coord_path = f"{result_path}/skull_detect_cache.txt"
     cv2.imwrite(f"{cache_path}/skull_detect_cache.png", frame)
     # Bash command to yolov5 detect.py for object detection in frame
+    print(f"\nProcessing frame: {timestamp}")
     subprocess.check_call([
         "python", f"{yolov5_path}/detect.py",
         "--weights", f"{yolov5_path}/weights/last_yolov5s_results.pt",
@@ -128,7 +129,7 @@ def process_stream(video_path, display):
         timestamp = milli_to_timestamp(millisecond)
 
         # Determine skull coordinates
-        retval = detect_skull(frame, config)
+        retval = detect_skull(frame, config, timestamp)
         skull_coords = []
         if retval:
             resize_factor, skull_coords_resized = retval
