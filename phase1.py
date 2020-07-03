@@ -10,10 +10,6 @@ import configparser
 # Will be used in phase 1 for batch processing of the episodes
 # Developed Date: 30 June 2020
 
-
-
-
-
 # returns filepath of an unprocessed episode
 def select_unprocessed_episode(directory):
     unprocessed_directory_path = os.path.join(directory, "episodes", "unprocessed")
@@ -36,9 +32,9 @@ def save_extracted_frame(extracted_frame, directory):
 
 
 # extracts frames with skull and saves frames and additional data on is a csv file in the specified directory
-def extract_and_save_skull_frames(path, detection_method, sampling_period, directory, display):
+def extract_and_save_skull_frames(path, directory, display):
     logger.info("processing video to extract skull frames...")
-    extracted_frames = vr.process_stream(path, sampling_period, detection_method, display)
+    extracted_frames = vr.process_stream(path, display)
 
     c_log = CsvLogger(directory)
     logger.info('saving csv data to {}'.format(c_log.filename))
@@ -52,20 +48,26 @@ def extract_and_save_skull_frames(path, detection_method, sampling_period, direc
 if __name__ == "__main__":
     # Initialise strings from config file
     config = configparser.ConfigParser()
-    config.read('strings.config')
+    config.read('strings.ini')
 
     # Initialising arguments
     ap = argparse.ArgumentParser()
     ap.add_argument("-w", "--working_directory", required=True,
                     help="path to the directory containing episodes, images folder, and data.csv file")
-    ap.add_argument("-y", "--display", type=int, default=1, help="whether or not to display output frame to screen")
+    ap.add_argument("-y", "--display", type=int, default=0, help="whether or not to display output frame to screen")
     ap.add_argument("-d", "--detection_method", type=str, default="cnn",
                     help="detection model to use: either 'hog'/'cnn'")
-    ap.add_argument("-s", "--sample_period", type=int, default=100,
-                    help="milliseconds between each sampled frame, default: 100")
+    # ap.add_argument("-s", "--sample_period", type=int, default=100,
+    #                 help="milliseconds between each sampled frame, default: 100")
     args = vars(ap.parse_args())
 
     logger.info('start processing remaining unprocessed episode...')
+
+    # creates some necessary files
+    os.makedirs(os.path.join(args['working_directory'], 'episodes', 'processed'), exist_ok=True)
+    os.makedirs(os.path.join(args['working_directory'], 'episodes', 'unprocessed'), exist_ok=True)
+    os.makedirs(os.path.join(args['working_directory'], 'images', 'processed'), exist_ok=True)
+    os.makedirs(os.path.join(args['working_directory'], 'images', 'unprocessed'), exist_ok=True)
 
     while True:
         logger.info('searching for unprocessed episode...')
@@ -79,8 +81,6 @@ if __name__ == "__main__":
 
         extract_and_save_skull_frames(
             path,
-            args["detection_method"],
-            args["sample_period"],
             args["working_directory"],
             args["display"]
         )

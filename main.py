@@ -15,7 +15,7 @@ import configparser
 
 # Initialise strings from config file
 config = configparser.ConfigParser()
-config.read('strings.config')
+config.read('strings.ini')
 
 # Initialising arguments
 ap = argparse.ArgumentParser()
