@@ -85,8 +85,8 @@ args = vars(ap.parse_args())
 if __name__ == '__main__':
     sql_conn = SqlConnector(args['input'])
     # BULK INSERT example from table skull
-    sql_conn.bulk_insert_csv('skull', header=None)
+    #sql_conn.bulk_insert_csv('skull', header=None)
 
     #SELECT example from table skull
-    result = sql_conn.execute('SELECT * FROM skull;', 'SELECT')
+    #result = sql_conn.execute('SELECT * FROM skull;', 'SELECT')
     #logger.info(result)
