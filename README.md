@@ -1,6 +1,14 @@
 # Infinite Challenge [South Korea]
-challenge is infinite.
+"Challenge is Infinite". Infinite Challenge is a South Korean television entertainment program, distributed and syndicated by MBC.
+
+![Image of infinite challenge logo](resources/images/Infinite_Challenge_Logo.jpg)
+
+> Infinite Challenge is recognized as the first "Real-Variety" show in Korean television history. The program is largely unscripted, filmed in almost-secrecy and followed a similar format of challenge-based reality television programs. The challenges are often absurd or impossible to achieve, so the program takes on the satirical comedy aspect of a variety show rather than a standard reality or competition program. In earlier episodes, the show's six hosts and staff would continuously proclaim that, in order to achieve its comedic purposes, the program had to be "3-D": Dirty, Dangerous, and Difficult.[14] It gives people fun to try things that seem impossible.
+[Wikipedia](https://en.wikipedia.org/wiki/Infinite_Challenge)
+
 # Project Overview
+## Skulls (i.e. Skullmark)
+
 # Project Description
 ## Data Pipeline
 ![img_datapipeline](resources/images/data_pipeline_2.png)
@@ -12,6 +20,10 @@ challenge is infinite.
    1. Main script (facial_recognition model) will iterate the images in the directory and recognise which person is detected in the scene where skull is appeared. 
         * IF multiple people is detected with the skull, we will use the coordinates of the skull and the detected member's faces that are already logged in the CSV file, to find the person that are located closest to the skull (estimated to be the person who is being burned)
     
-## Skull Detection
-## Facial Recognition
+## Phase 1: Skull Detection
+## Phase 2: Facial Recognition
+
+![opencvlogo](./resources/images/opencv_logo.png)
+
+## Phase 3: Analysis & Estimation
 ## Batch Processing
