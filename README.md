@@ -8,6 +8,7 @@
 
 # Project Overview
 ## Skulls (i.e. Skullmark)
+![img_skulls](resources/images/skulls.png)
 
 # Project Description
 ## Data Pipeline
