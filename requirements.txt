@@ -9,7 +9,6 @@ numpy>=1.17.3
 torch>=1.4
 matplotlib
 pillow
-tensorboard
 PyYAML>=5.3
 torchvision
 scipy
