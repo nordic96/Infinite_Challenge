@@ -4,3 +4,12 @@ imutils
 pickle-mixin
 pyodbc
 pandas==1.0.5
+Cython
+numpy>=1.17.3
+torch>=1.4
+matplotlib
+pillow
+PyYAML>=5.3
+torchvision
+scipy
+tqdm

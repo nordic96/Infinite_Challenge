@@ -1,6 +1,5 @@
 import pyodbc
 import argparse
-import csv
 import configparser
 import pandas as pd
 from logger.base_logger import logger
@@ -39,12 +38,20 @@ class SqlConnector:
         self.file_path = file_path
 
     def execute(self, query, type):
-        self.cursor.execute(query)
-        if type == 'SELECT':
-            for row in self.cursor:
-                print(row)
-        elif type == 'INSERT':
-            self.conn.commit()
+        logger.info(query)
+        try:
+            self.cursor.execute(query)
+            # SELECT OPERATION
+            if type == 'SELECT':
+                columns = [column[0] for column in self.cursor.description]
+                results = [dict(zip(columns, row)) for row in self.cursor.fetchall()]
+                logger.info(results)
+                return results
+            # SINGLE INSERT OPERATION
+            elif type == 'INSERT':
+                self.conn.commit()
+        except pyodbc.Error as ex:
+            logger.error(ex)
 
     def bulk_insert_csv(self, table_name, header):
         try:
@@ -76,6 +83,10 @@ ap.add_argument("-i", "--input", required=True, help="input directory for csv fi
 args = vars(ap.parse_args())
 
 if __name__ == '__main__':
-    sqlconn = SqlConnector(args['input'])
-    # Provide header if csv file includes any
-    sqlconn.bulk_insert_csv('skull', header=None)
+    sql_conn = SqlConnector(args['input'])
+    # BULK INSERT example from table skull
+    #sql_conn.bulk_insert_csv('skull', header=None)
+
+    #SELECT example from table skull
+    #result = sql_conn.execute('SELECT * FROM skull;', 'SELECT')
+    #logger.info(result)
