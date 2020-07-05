@@ -9,10 +9,10 @@ headers = {
     'Prediction-key': 'a40f5cb7ec74433d90a94820a38eb35f',
 }
 
-def detect(img, conf, config):
+def detect(img, config):
     model_version = config.get("SKULL", "model_version")
     data = request_detection(img, model_version)
-    boxes = interpret_result(data, conf)
+    boxes = interpret_result(data, float(config.get("SKULL", "confidence")))
     return boxes
 
 
@@ -48,10 +48,3 @@ def xywh_to_yxyx(orig_box):
     y1 = orig_box[1]
     y2 = y1 + orig_box[3]
     return [y1, x1, y2, x2]
-
-if __name__ == "__main__":
-    ap = argparse.ArgumentParser()
-    ap.add_argument("-i", "--input", required=True, type=str, help="path to image")
-    arg = vars(ap.parse_args())
-    boxes = detect(arg['input'])
-    print(boxes)
