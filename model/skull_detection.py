@@ -1,7 +1,7 @@
 import argparse
 import http.client
 import json
-import logger.base_logger
+from logger.base_logger import logger
 
 headers = {
     # Request headers
@@ -26,7 +26,7 @@ def request_detection(img):
         return data
     except Exception as e:
         logger.critical("Error connecting to Cognitive Services", e)
-        return None
+        raise e
 
 
 def interpret_result(json_obj, conf):
