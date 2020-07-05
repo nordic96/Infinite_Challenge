@@ -5,7 +5,9 @@ import os
 import re
 import cv2
 
+from model import skull_detection as sd
 from logger.base_logger import logger
+
 
 # Description: Skull Recognition with video stream input
 # Developed Date: 25 June 2020
@@ -22,8 +24,8 @@ class ExtractedFrame:
 
 
 def milli_to_timestamp(ms):
-    h, ms = divmod(ms, 60*60*1000)
-    m, ms = divmod(ms, 60*1000)
+    h, ms = divmod(ms, 60 * 60 * 1000)
+    m, ms = divmod(ms, 60 * 1000)
     s, ms = divmod(ms, 1000)
     timestamp = "{}:{}:{}:{}".format(h, m, s, ms)
     return timestamp
@@ -38,46 +40,57 @@ def get_episode_number(filename):
     episode_num = re.sub('[^0-9]', '', episode_num)
     return episode_num
 
-
-def detect_skull(frame, config, timestamp):
+# Skull detection with Azure Cognitive Services
+def detect_skull(frame, config):
     # resize_factor format: [height, width, channel]
     r = frame.shape
-    # Get paths
-    yolov5_path = config.get("SKULL", "path_yolov5")
     cache_path = config.get("SKULL", "path_cache")
-    result_path = config.get("SKULL", "path_result_cache")
-    coord_path = f"{result_path}/skull_detect_cache.txt"
     cv2.imwrite(f"{cache_path}/skull_detect_cache.png", frame)
-    # Bash command to yolov5 detect.py for object detection in frame
-    print(f"\nProcessing frame: {timestamp}")
-    subprocess.check_call([
-        "python", f"{yolov5_path}/detect.py",
-        "--weights", f"{yolov5_path}/weights/last_yolov5s_results.pt",
-        "--img", config.get("SKULL", "image_num"),
-        "--conf", config.get("SKULL","confidence"),
-        "--source", cache_path,
-        "--save-txt",
-        "--out", result_path])
-    # Read skull coordinates from cached result
-    boxes = []
-    if os.path.isfile(coord_path):
-        with open(coord_path) as f:
-            for line in f:
-                inner_list = [elt.strip() for elt in line.split(" ")]
-                inner_list = list(map(float, filter(None, inner_list[1:])))
-                # Convert nx4 boxes from xywh to yxyx
-                # Original: [x_center, y_center, width, height]
-                # Output: [tpo_y, right_x, bottom_y, left_x]
-                assert len(inner_list) == 4
-                x1 = (2 * inner_list[0] + inner_list[2]) / 2
-                x2 = x1 - inner_list[2]
-                y2 = (2 * inner_list[1] + inner_list[3]) / 2
-                y1 = y2 - inner_list[3]
-                boxes.append([y1, x1, y2, x2])
-    if len(boxes) > 0:
-        return r, boxes
-    else:
-        return None
+    if not sd.request_detection(f"{cache_path}/skull_detect_cache.png", cache_path):
+        logger.critical("Detection failed.")
+    boxes = sd.interpret_result(cache_path, config.get("SKULL", "confidence"))
+    return r, boxes
+
+# Skull detection with local YOLOv5 component
+# def detect_skull(frame, config, timestamp):
+#     # resize_factor format: [height, width, channel]
+#     r = frame.shape
+#     # Get paths
+#     yolov5_path = config.get("SKULL", "path_yolov5")
+#     cache_path = config.get("SKULL", "path_cache")
+#     result_path = config.get("SKULL", "path_result_cache")
+#     coord_path = f"{result_path}/skull_detect_cache.txt"
+#     cv2.imwrite(f"{cache_path}/skull_detect_cache.png", frame)
+#     # Bash command to yolov5 detect.py for object detection in frame
+#     print(f"\nProcessing frame: {timestamp}")
+#     subprocess.check_call([
+#         "python", f"{yolov5_path}/detect.py",
+#         "--weights", f"{yolov5_path}/weights/last_yolov5s_results.pt",
+#         "--img", config.get("SKULL", "image_num"),
+#         "--conf", config.get("SKULL","confidence"),
+#         "--source", cache_path,
+#         "--save-txt",
+#         "--out", result_path])
+#     # Read skull coordinates from cached result
+#     boxes = []
+#     if os.path.isfile(coord_path):
+#         with open(coord_path) as f:
+#             for line in f:
+#                 inner_list = [elt.strip() for elt in line.split(" ")]
+#                 inner_list = list(map(float, filter(None, inner_list[1:])))
+#                 # Convert nx4 boxes from xywh to yxyx
+#                 # Original: [x_center, y_center, width, height]
+#                 # Output: [tpo_y, right_x, bottom_y, left_x]
+#                 assert len(inner_list) == 4
+#                 x1 = (2 * inner_list[0] + inner_list[2]) / 2
+#                 x2 = x1 - inner_list[2]
+#                 y2 = (2 * inner_list[1] + inner_list[3]) / 2
+#                 y1 = y2 - inner_list[3]
+#                 boxes.append([y1, x1, y2, x2])
+#     if len(boxes) > 0:
+#         return r, boxes
+#     else:
+#         return None
 
 
 def label_frame(frame, timestamp, boxes):
@@ -140,7 +153,8 @@ def process_stream(video_path, display):
                 left = int(left * resize_factor[1])
                 skull_coords.append((top, right, bottom, left))
             extracted_frames.append(ExtractedFrame(episode_number, frame, frame_number, timestamp, skull_coords))
-        logger.info('sampled_frame: {} | timestamp: {} | skulls detected: {}'.format(frame_number, timestamp, skull_coords))
+        logger.info(
+            'sampled_frame: {} | timestamp: {} | skulls detected: {}'.format(frame_number, timestamp, skull_coords))
 
         # Display squares on sampled frames where skulls are located
         if display == 1:
