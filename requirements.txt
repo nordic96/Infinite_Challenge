@@ -13,3 +13,5 @@ PyYAML>=5.3
 torchvision
 scipy
 tqdm
+boto3==1.14.16
+awscli==1.18.93
