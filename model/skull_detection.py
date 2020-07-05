@@ -9,16 +9,17 @@ headers = {
     'Prediction-key': 'a40f5cb7ec74433d90a94820a38eb35f',
 }
 
-def detect(img_path, conf):
-    data = request_detection(img_path)
+def detect(img, conf, config):
+    model_version = config.get("SKULL", "model_version")
+    data = request_detection(img, model_version)
     boxes = interpret_result(data, conf)
     return boxes
 
 
-def request_detection(img):
+def request_detection(img, model_version):
     try:
         conn = http.client.HTTPSConnection('skull-detection.cognitiveservices.azure.com')
-        conn.request("POST", '/customvision/v3.0/Prediction/2cbd63c9-acf6-430a-9ea9-9f5caf06d9d7/detect/iterations/skull_050720/image', img, headers)
+        conn.request("POST", f'/customvision/v3.0/Prediction/2cbd63c9-acf6-430a-9ea9-9f5caf06d9d7/detect/iterations/{model_version}/image', img, headers)
         response = conn.getresponse()
         data = response.read()
         data = json.loads(data)
