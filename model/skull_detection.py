@@ -29,9 +29,8 @@ def request_detection(img):
         raise e
 
 
-def interpret_result(json_obj, conf):
+def interpret_result(result, conf):
     boxes = []
-    result = json_obj
     for detection in result['predictions']:
         if detection['probability'] < conf:
             continue
@@ -52,7 +51,6 @@ def xywh_to_yxyx(orig_box):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("-i", "--input", required=True, type=str, help="path to image")
-    ap.add_argument("-c", "--cache", type=str, help="cache directory", default="./cache")
     arg = vars(ap.parse_args())
     boxes = detect(arg['input'])
     print(boxes)
