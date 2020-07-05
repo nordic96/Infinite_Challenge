@@ -5,7 +5,9 @@ import os
 import re
 import cv2
 
+import skull_detection as sd
 from logger.base_logger import logger
+
 
 # Description: Skull Recognition with video stream input
 # Developed Date: 25 June 2020
@@ -22,8 +24,8 @@ class ExtractedFrame:
 
 
 def milli_to_timestamp(ms):
-    h, ms = divmod(ms, 60*60*1000)
-    m, ms = divmod(ms, 60*1000)
+    h, ms = divmod(ms, 60 * 60 * 1000)
+    m, ms = divmod(ms, 60 * 1000)
     s, ms = divmod(ms, 1000)
     timestamp = "{}:{}:{}:{}".format(h, m, s, ms)
     return timestamp
@@ -39,13 +41,24 @@ def get_episode_number(filename):
     return episode_num
 
 
-def detect_skull(frame, config, timestamp):
+# Skull detection with Azure Cognitive Services
+def detect_skull(frame, config):
+    # resize_factor format: [height, width, channel]
+    r = frame.shape
+    cv2_im = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    ret, jpeg = cv2.imencode('.jpg', cv2_im)
+    boxes = sd.detect(jpeg.tobytes(), float(config.get("SKULL", "confidence")), config)
+    return r, boxes
+
+
+# Skull detection with local YOLOv5 component
+def detect_skull_yolo(frame, config, timestamp):
     # resize_factor format: [height, width, channel]
     r = frame.shape
     # Get paths
-    yolov5_path = config.get("SKULL", "path_yolov5")
-    cache_path = config.get("SKULL", "path_cache")
-    result_path = config.get("SKULL", "path_result_cache")
+    yolov5_path = config.get("YOLO", "path_yolov5")
+    cache_path = config.get("YOLO", "path_cache")
+    result_path = config.get("YOLO", "path_result_cache")
     coord_path = f"{result_path}/skull_detect_cache.txt"
     cv2.imwrite(f"{cache_path}/skull_detect_cache.png", frame)
     # Bash command to yolov5 detect.py for object detection in frame
@@ -53,8 +66,8 @@ def detect_skull(frame, config, timestamp):
     subprocess.check_call([
         "python", f"{yolov5_path}/detect.py",
         "--weights", f"{yolov5_path}/weights/last_yolov5s_results.pt",
-        "--img", config.get("SKULL", "image_num"),
-        "--conf", config.get("SKULL","confidence"),
+        "--img", config.get("YOLO", "image_num"),
+        "--conf", config.get("SKULL", "confidence"),
         "--source", cache_path,
         "--save-txt",
         "--out", result_path])
@@ -129,7 +142,7 @@ def process_stream(video_path, display):
         timestamp = milli_to_timestamp(millisecond)
 
         # Determine skull coordinates
-        retval = detect_skull(frame, config, timestamp)
+        retval = detect_skull(frame, config)
         skull_coords = []
         if retval:
             resize_factor, skull_coords_resized = retval
