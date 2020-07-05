@@ -18,7 +18,7 @@ def detect(img_path, conf):
 def request_detection(img):
     try:
         conn = http.client.HTTPSConnection('skull-detection.cognitiveservices.azure.com')
-        conn.request("POST", "/customvision/v3.0/Prediction/2cbd63c9-acf6-430a-9ea9-9f5caf06d9d7/detect/iterations/skull_050720/image", img, headers)
+        conn.request("POST", '/customvision/v3.0/Prediction/2cbd63c9-acf6-430a-9ea9-9f5caf06d9d7/detect/iterations/skull_050720/image', img, headers)
         response = conn.getresponse()
         data = response.read()
         data = json.loads(data)
