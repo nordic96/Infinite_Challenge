@@ -25,7 +25,7 @@ def milli_to_timestamp(ms):
     h, ms = divmod(ms, 60 * 60 * 1000)
     m, ms = divmod(ms, 60 * 1000)
     s, ms = divmod(ms, 1000)
-    timestamp = "{}:{}:{}:{}".format(h, m, s, ms)
+    timestamp = "{}:{:02d}:{:02d}:{:03d}".format(h, m, s, ms)
     return timestamp
 
 
