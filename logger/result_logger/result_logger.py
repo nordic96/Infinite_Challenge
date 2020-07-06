@@ -5,6 +5,12 @@ from logger.base_logger import logger
 from re import findall
 from scipy.spatial.distance import euclidean as distance
 
+FIELDNAME_EP = 'episode'
+FIELDNAME_TIME = 'time'
+FIELDNAME_SC_LIST = 'list_skull_coords'
+FIELDNAME_FC_LIST = 'list_face_coords'
+FIELDNAME_NAME_LIST = 'list_names'
+FIELDNAME_BURNED_MEMBER = 'burned_member'
 
 # Code for logging image processing data for project
 # Developed Date: 29 June 2020
@@ -54,27 +60,20 @@ def average_centre(coords):
     n = float(n)
     return sum_x / n, sum_y / n
 
-class DataLoggerFieldName:
-    EPISODE = 'episode'
-    TIME = 'time'
-    SC_LIST = 'skull-coord'
-    FC_LIST = 'face-coord'
-    NAME_LIST = 'name'
-
-class DataLogger:
-    FIELDNAMES = [DataLoggerFieldName.EPISODE, DataLoggerFieldName.TIME, DataLoggerFieldName.SC_LIST, DataLoggerFieldName.FC_LIST, DataLoggerFieldName.NAME_LIST]
+class ResultLogger:
+    FIELDNAMES = [FIELDNAME_EP, FIELDNAME_TIME, FIELDNAME_SC_LIST, FIELDNAME_FC_LIST, FIELDNAME_NAME_LIST]
 
     def __init__(self, filepath):
         self.filepath = filepath
-        if not DataLogger.has_valid_headers(filepath):
+        if not ResultLogger.has_valid_headers(filepath):
             logger.warning(f'Invalid headers. {filepath} will be overwritten')
             f = open(filepath, 'w')
-            DictWriter(f, fieldnames=DataLogger.FIELDNAMES).writeheader()
+            DictWriter(f, fieldnames=ResultLogger.FIELDNAMES).writeheader()
 
     @staticmethod
     def has_valid_headers(filepath):
         header = next(reader(open(filepath, 'r')))
-        return set(header).difference(set(DataLogger.FIELDNAMES)) == set()
+        return set(header).difference(set(ResultLogger.FIELDNAMES)) == set()
 
     def update_entry(self, ep, time, sc, fc, name):
         assert ep is not None
@@ -85,8 +84,8 @@ class DataLogger:
         updated = False
         rf = open(self.filepath, 'r')
         wf = NamedTemporaryFile(mode='w', delete=False)
-        reader = DictReader(rf, fieldnames=DataLogger.FIELDNAMES)
-        writer = DictWriter(wf, fieldnames=DataLogger.FIELDNAMES)
+        reader = DictReader(rf, fieldnames=ResultLogger.FIELDNAMES)
+        writer = DictWriter(wf, fieldnames=ResultLogger.FIELDNAMES)
         header = True
         for row in reader:
             # skip header row
@@ -95,15 +94,15 @@ class DataLogger:
                 header = False
                 continue
             # update row (edit/delete)
-            if row['episode'] == str(ep) and row['time'] == str(time):
+            if row[FIELDNAME_EP] == str(ep) and row[FIELDNAME_TIME] == str(time):
                 updated = True
                 logger.info('Editing entry for frame [{} @ ep{}]'.format(time, ep))
                 writer.writerow({
-                    'episode': row['episode'],
-                    'time': row['time'],
-                    'skull-coord': sc,
-                    'face-coord': fc,
-                    'name': name
+                    FIELDNAME_EP: row[FIELDNAME_EP],
+                    FIELDNAME_TIME: row[FIELDNAME_TIME],
+                    FIELDNAME_SC_LIST: sc,
+                    FIELDNAME_FC_LIST: fc,
+                    FIELDNAME_NAME_LIST: name
                 })
             # copy row
             else:
@@ -113,9 +112,9 @@ class DataLogger:
 
     def append_entry(self, ep, time, sc, fc, name):
         f = open(self.filepath, 'a')
-        writer = DictWriter(f, fieldnames=DataLogger.FIELDNAMES)
+        writer = DictWriter(f, fieldnames=ResultLogger.FIELDNAMES)
         logger.info('Adding new entry for [{} @ ep{}]'.format(time, ep))
-        writer.writerow({'episode': ep, 'time': time, 'skull-coord': sc, 'face-coord': fc, 'name': name})
+        writer.writerow({FIELDNAME_EP: ep, FIELDNAME_TIME: time, FIELDNAME_SC_LIST: sc, FIELDNAME_FC_LIST: fc, FIELDNAME_NAME_LIST: name})
 
     def add_skull_entry(self, ep, time, sc):
         self.get_entry(ep, time)
@@ -129,7 +128,7 @@ class DataLogger:
         with open(self.filepath, 'r') as f:
             reader = DictReader(f)
             for row in reader:
-                if row['episode'] == str(ep) and row['time'] == str(time):
+                if row[FIELDNAME_EP] == str(ep) and row[FIELDNAME_TIME] == str(time):
                     return row
         return None
 
@@ -138,13 +137,13 @@ class DataLogger:
         if entry is None:
             logger.warning(f'Entry for [{time} @ ep{ep}] does not exist. Unable to update with results.')
             return
-        self.update_entry(ep, time, entry['skull-coord'], fc, name)
+        self.update_entry(ep, time, entry[FIELDNAME_SC_LIST], fc, name)
 
     def print(self):
         print(open(self.filepath).read())
 
     def get_column(self, header):
-        r = DictReader(open(self.filepath, 'r'), fieldnames=DataLogger.FIELDNAMES)
+        r = DictReader(open(self.filepath, 'r'), fieldnames=ResultLogger.FIELDNAMES)
         col = []
         is_header = True
         for row in r:
@@ -155,12 +154,12 @@ class DataLogger:
             col.append(row[header])
         return col
 
-    def find_burned(self):
-        episode_entries = self.get_column('episode')
-        time_entries = self.get_column('time')
-        sclist_entries = list(map(_getcoordlistcol_util, self.get_column('skull-coord')))
-        fclist_entries = list(map(_getcoordlistcol_util, self.get_column('face-coord')))
-        names_entries = list(map(_getnamelistcol_util, self.get_column('name')))
+    def estimate_burned_member(self):
+        episode_entries = self.get_column(FIELDNAME_EP)
+        time_entries = self.get_column(FIELDNAME_TIME)
+        sclist_entries = list(map(_getcoordlistcol_util, self.get_column(FIELDNAME_SC_LIST)))
+        fclist_entries = list(map(_getcoordlistcol_util, self.get_column(FIELDNAME_FC_LIST)))
+        names_entries = list(map(_getnamelistcol_util, self.get_column(FIELDNAME_NAME_LIST)))
 
         # find closest face to skull for each entry
         burned_entries = []

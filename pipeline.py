@@ -1,7 +1,7 @@
 from model import vid_recognition as vr
 from model import frame_recognition as fr
 from logger.base_logger import logger
-from utils.csv_logger import CsvLogger
+from logger.result_logger import CsvLogger
 from tempfile import TemporaryDirectory
 import boto3
 import cv2
