@@ -5,7 +5,7 @@ import logging
 import boto3
 from botocore.exceptions import ClientError
 
-LOG_FORMAT = '%(asctime)s %(module)s:%(funcName) [%(levelname)s] - %(message)s'
+LOG_FORMAT = '%(asctime)s %(module)s:%(funcName)s [%(levelname)s] - %(message)s'
 
 # Initialise strings from config file
 config = configparser.ConfigParser()
