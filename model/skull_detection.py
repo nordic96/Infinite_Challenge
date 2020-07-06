@@ -10,10 +10,9 @@ headers = {
 }
 
 
-def detect(img, config):
-    model_version = config.get("SKULL", "model_version")
+def detect(img, confidence, model_version):
     data = request_detection(img, model_version)
-    boxes = interpret_result(data, float(config.get("SKULL", "confidence")))
+    boxes = interpret_result(data, confidence)
     return boxes
 
 

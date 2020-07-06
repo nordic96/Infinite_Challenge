@@ -53,7 +53,7 @@ def save_extracted_frame(directory, frame):
 # 1. process a single video using model
 # 2. cache images with skulls
 # 3. update result.csv for each image
-def phase1(episode_num, bucket, output_directory, result_logger, sample_rate, weights, cache_path, result_path, image_num, confidence):
+def phase1(episode_num, bucket, output_directory, result_logger, sample_rate, confidence, model_version):
     try:
         # get episode
         episode_filename = f'episode{episode_num}.mp4'
@@ -64,11 +64,8 @@ def phase1(episode_num, bucket, output_directory, result_logger, sample_rate, we
         extracted_frames = vr.process_stream(
             video_path=video_path,
             sample_rate=sample_rate,
-            cache_path=cache_path,
-            result_path=result_path,
-            image_num=image_num,
             confidence=confidence,
-            weights=weights,
+            model_version=model_version,
             display=False
         )
         # update results and cache image locally on container
@@ -111,9 +108,9 @@ def main():
         logger.info('Setting up pipeline')
         try:
             episode = int(os.environ[JOB_INDEX_KEY]) + int(os.environ[IDX_OFFSET_KEY])
-        except KeyError as ex:
+        except KeyError as er:
             logger.error('Environment variables not set')
-            raise ex
+            raise er
         # Initialise strings from config file
         try:
             config = configparser.ConfigParser()
@@ -134,10 +131,7 @@ def main():
             result_logger = CsvLogger(result_logger_file_path)
             # skull detection (phase 1) parameters
             sample_rate = config.getint('SKULL', 'video_sample_rate')
-            weights_file_path = config.get("SKULL", "weights")
-            cache_path = config.get("SKULL", "path_cache")
-            result_path = config.get("SKULL", "path_result_cache")
-            image_num = config.getint("SKULL", "image_num")
+            model_version = config.get('SKULL', 'model_version')
             confidence = config.getfloat("SKULL", "confidence_threshold")
             # face recognition (phase 2) parameters
             detection_method = config.get('FACE', 'detection_method')
@@ -155,10 +149,7 @@ def main():
             output_directory=image_directory,
             result_logger=result_logger,
             sample_rate=sample_rate,
-            weights=weights_file_path,
-            cache_path=cache_path,
-            result_path=result_path,
-            image_num=image_num,
+            model_version=model_version,
             confidence=confidence
         )
         # phase 2
