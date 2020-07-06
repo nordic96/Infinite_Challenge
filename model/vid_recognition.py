@@ -112,7 +112,8 @@ def calculate_skip_rate(vid, ms_skip_rate):
 
 
 # returns relevant frames and data (coordinates)
-def process_stream(video_path, sample_rate, display, confidence, model_version):
+def process_stream(video_path, confidence, model_version, sample_rate=1000, display=False):
+    logger.info(f'Processing {os.path.basename(video_path)} with these settings: Sample rate={sample_rate}ms; Confidence={confidence}; Model Version={model_version}')
     vid_cap = cv2.VideoCapture(video_path)
     # initialize output list
     extracted_frames = []
@@ -144,8 +145,9 @@ def process_stream(video_path, sample_rate, display, confidence, model_version):
                 bottom = int(bottom * resize_factor[0])
                 left = int(left * resize_factor[1])
                 skull_coords.append((top, right, bottom, left))
-            extracted_frames.append(ExtractedFrame(episode_number, frame, frame_number, timestamp, skull_coords))
-        logger.info('sampled_frame: {} | timestamp: {} | skulls detected: {}'.format(frame_number, timestamp, skull_coords))
+            if len(skull_coords) > 0:
+                extracted_frames.append(ExtractedFrame(episode_number, frame, frame_number, timestamp, skull_coords))
+        logger.info('[{}] skulls detected: {}'.format(timestamp, skull_coords))
 
         # Display squares on sampled frames where skulls are located
         if display:
