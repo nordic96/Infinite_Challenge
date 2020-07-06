@@ -107,7 +107,7 @@ def display_results(processed_image):
     pass
 
 
-def process_image(image_path, data, detection_method, display):
+def process_image(image_path, data, detection_method, display=False):
     episode_number, timestamp, image = fetch_unprocessed_img(image_path)
     boxes, encodings = locate_faces(image, detection_method)
     names = process_recognition(data, encodings)
