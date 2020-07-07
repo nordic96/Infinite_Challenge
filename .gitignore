@@ -3,3 +3,5 @@
 test/
 dataset/known_faces/*
 dataset/unknown_faces/*
+temp/logs/
+venv/
