@@ -30,11 +30,11 @@ logger.basicConfig(
     filename=logfile_path,
     filemode='w',
     format=LOG_FORMAT,
-    level=logging.INFO
+    level=logging.DEBUG
 )
 
 console = logging.StreamHandler()
-console.setLevel(logging.INFO)
+console.setLevel(logging.DEBUG)
 # set a format which is simpler for console use
 formatter = logging.Formatter(LOG_FORMAT)
 # tell the handler to use this format

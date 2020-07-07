@@ -1,5 +1,4 @@
 import subprocess
-import argparse
 import os
 import re
 import cv2
@@ -56,7 +55,7 @@ def detect_skull_yolo(frame, timestamp, confidence, image_num, yolov5_path, cach
     coord_path = f"{result_path}/skull_detect_cache.txt"
     cv2.imwrite(f"{cache_path}/skull_detect_cache.png", frame)
     # Bash command to yolov5 detect.py for object detection in frame
-    print(f"\nProcessing frame: {timestamp}")
+    logger.info(f"\nProcessing: {timestamp}")
     subprocess.check_call([
         "python", f"{yolov5_path}/detect.py",
         "--weights", f"{yolov5_path}/weights/last_yolov5s_results.pt",
@@ -100,11 +99,7 @@ def label_frame(frame, timestamp, boxes):
 
 def display_sampled_frame(frame, timestamp, skull_coords):
     cv2.imshow("Frame", label_frame(frame, timestamp, skull_coords))
-    key = cv2.waitKey(1) & 0xFF
-    if key == ord("q"):
-        return True
-    else:
-        return False
+    cv2.waitKey(1000)
 
 
 def calculate_skip_rate(vid, ms_skip_rate):
@@ -158,6 +153,7 @@ def process_stream(video_path, confidence, model_version, sample_rate=1000, disp
 
 
 if __name__ == "__main__":
+    import argparse
     # Initializing arguments
     ap = argparse.ArgumentParser()
     ap.add_argument("-i", "--input", required=True, type=str, help="path to unprocessed episode file")

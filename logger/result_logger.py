@@ -5,17 +5,19 @@ from logger.base_logger import logger
 from re import findall
 from scipy.spatial.distance import euclidean as distance
 
-FIELDNAME_EP = 'episode'
-FIELDNAME_TIME = 'time'
+
+FIELDNAME_EP = 'episode_no'  # should match database
+FIELDNAME_TIME = 'ep_time'  # should match database
 FIELDNAME_SC_LIST = 'list_skull_coords'
 FIELDNAME_FC_LIST = 'list_face_coords'
 FIELDNAME_NAME_LIST = 'list_names'
-FIELDNAME_BURNED_MEMBER = 'burned_member'
+FIELDNAME_BURNED_MEMBER = 'member'  # should match database
 
 # Code for logging image processing data for project
 # Developed Date: 29 June 2020
 # Last Modified: 6 Jul 2020
 # Brian Fung
+
 
 def _has_valid_header_util(fieldnames, filepath):
     try:
@@ -23,6 +25,7 @@ def _has_valid_header_util(fieldnames, filepath):
         return set(header).difference(set(fieldnames)) == set()
     except StopIteration:
         return False
+
 
 def _get_coord_list_col_util(string):
     pattern = '(\\((?:[^\\(])+\\))'
@@ -210,15 +213,12 @@ class ResultLogger:
             if len(names) == 0:
                 estimates.append({FIELDNAME_EP: ep, FIELDNAME_TIME: time, FIELDNAME_BURNED_MEMBER: 'NO_FACE_FOUND'})
                 logger.warning(f'[{time} @ ep{ep}] No burned member: No faces found')
-            elif len(names) == 1:
-                burned = names[0]
-                estimates.append({FIELDNAME_EP: ep, FIELDNAME_TIME: time, FIELDNAME_BURNED_MEMBER: burned})
-                logger.info(f'[{time} @ ep{ep}] {burned} burned: Only face found')
             else:
                 burned = None
                 distance_from_skull = {}
                 for member, coordinate in zip(names, fclist):
-                    dist = distance(_centre_util(coordinate), sk_avg)
+                    cd = _centre_util(coordinate)
+                    dist = distance(cd, sk_avg)
                     distance_from_skull[member] = dist
                     if burned is None or dist < distance_from_skull[burned]:
                         burned = member
