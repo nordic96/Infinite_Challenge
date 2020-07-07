@@ -2,11 +2,13 @@ import http.client
 import json
 from logger.base_logger import logger
 
+
 headers = {
     # Request headers
     'Content-Type': 'application/octet-stream',
     'Prediction-key': '646c53c4762c4d149d9fd94690d2869d',
 }
+
 
 def detect(img, config):
     model_version = config.get("SKULL", "model_version")
