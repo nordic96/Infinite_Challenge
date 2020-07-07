@@ -55,11 +55,11 @@ def get_episode_number(filename):
 
 
 # Skull detection with Azure Cognitive Services
-def detect_skull(frame, confidence, model_version):
+def detect_skull(frame, key, confidence, model_version):
     # resize_factor format: [height, width, channel]
     r = frame.shape
     ret, jpeg = cv2.imencode('.jpg', frame)
-    boxes = sd.detect(jpeg.tobytes(), confidence, model_version)
+    boxes = sd.detect(jpeg.tobytes(), key, confidence, model_version)
     return r, boxes
 
 

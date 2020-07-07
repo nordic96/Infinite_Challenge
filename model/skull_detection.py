@@ -4,7 +4,6 @@ from logger.base_logger import logger
 
 
 def headers_with_prediction_key(key):
-    assert isinstance(key, str.__class__)
     assert len(key) > 0
     if len(key) == 0:
         raise ValueError('Prediction Key must be specified')
@@ -24,7 +23,7 @@ def detect(img, key, confidence, model_version):
 def request_detection(img, model_version, key):
     try:
         conn = http.client.HTTPSConnection('skull-detection-sea.cognitiveservices.azure.com')
-        headers_with_prediction_key(key)
+        headers = headers_with_prediction_key(key)
         conn.request("POST", f'/customvision/v3.0/Prediction/ae33224a-a67d-4489-bd07-a4405035700f/detect/iterations/{model_version}/image', img, headers)
         response = conn.getresponse()
         data = response.read()

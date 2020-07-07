@@ -90,20 +90,21 @@ def getRectangle(face_dictionary):
     return (left, top), (right, bottom)
 
 
-def recognise_faces(fc, img_path_dir, person_group_id, unknown_faces_dir, label_and_save=False):
+def recognise_faces(fc, img_dir_path, person_group_id, unknown_faces_dir, label_and_save=False):
     """
     Identify a face against a defined PersonGroup
     """
-    logger.info('Loading images...')
-    test_image_array = [file for file in glob.glob('{}/*.*'.format(img_path_dir))]
+    logger.info(f'Preparing images in {img_dir_path} ...')
+    test_image_array = [file for file in glob.glob('{}/*.*'.format(img_dir_path))]
+    logger.debug(f'test_image_array: {test_image_array}')
     no_files = len(test_image_array)
     no_skips = 0
+    no_fails = 0
     result_dict = {}
 
     for image_path in test_image_array:
         basename = os.path.basename(image_path)
         logger.info(f'Processing {image_path}...')
-        results = None
         faces_coord_dict = {}
         draw = None
         labelled_image = None
@@ -113,25 +114,26 @@ def recognise_faces(fc, img_path_dir, person_group_id, unknown_faces_dir, label_
             face_ids = []
             logger.info(f'Detecting faces using Azure Face Client...')
             detected_faces = fc.face.detect_with_stream(image)
-
-
             if len(detected_faces) == 0:
                 no_skips += 1
                 logger.info('No faces detected.')
+                continue
             logger.info(f'Detected {len(detected_faces)} faces.')
+            # Store bounds of detected faces in mapping of face-id to rectangle (pair of points) of detected faces
             for face in detected_faces:
                 face_ids.append(face.face_id)
                 faces_coord_dict[face.face_id] = getRectangle(face)
                 # logger.info('Face ID: {}, coordinates: {}'.format(face.face_id, getRectangle(face)))
             # Identify faces
+            logger.info('Identifying faces using Azure Face Client...')
             results = fc.face.identify(face_ids, person_group_id)
+            if results is None:
+                logger.info('No faces were identified in {}.'.format(basename))
+                continue
         except BaseException as ex:
             logger.warning(f'Error occurred while processing {basename}: {ex.__class__.__name__}')
-        if results is None:
-            logger.info('No faces to identify in {}.'.format(basename))
-            return result_dict
-
-        logger.info('Identifying faces using Azure Face Client...')
+            no_fails += 1
+            continue
 
         if label_and_save:
             labelled_image = Image.open(image_path)
@@ -157,22 +159,35 @@ def recognise_faces(fc, img_path_dir, person_group_id, unknown_faces_dir, label_
 
         result_dict[os.path.basename(basename)] = (person_detected_arr, person_coord_arr)
 
-    logger.info('Result: Total {} images, {} skipped images...'.format(no_files, no_skips))
+    logger.info('Result: Total {} images, {} skipped images, {} processing failed...'.format(no_files, no_skips, no_fails))
     # Returns the face & coord dict
     return result_dict
 
 
 if __name__ == '__main__':
-    # face_client = authenticate_client()
-    # Create empty Person Group. Person Group ID must be lower case, alphanumeric, and/or with '-', '_'.
-    # face_client.person_group.delete(PERSON_GROUP_ID)
-
-    # training_required = init_person_group(face_client)
+    # from configparser import ConfigParser
+    # config = ConfigParser()
+    # config.read('strings.ini')
+    # person_group_id = config['FACE']['person_group_id']
+    # endpoint = config['FACE']['endpoint']
+    # unknown_faces_dir = config['FACE']['unknown_faces_dir']
+    # known_faces_dir = config['FACE']['known_faces_dir']
+    # key = os.environ['IC_AZURE_KEY_FACE']
+    #
+    #
+    # face_client = authenticate_client(endpoint, key)
+    # # Create empty Person Group. Person Group ID must be lower case, alphanumeric, and/or with '-', '_'.
+    # face_client.person_group.delete(person_group_id)
+    #
+    # training_required = init_person_group(face_client, person_group_id, known_faces_dir)
     # if training_required:
-    # logger.info('Training required. Proceed to training...')
-    # train(face_client)
-
-    # results = recognise_faces(face_client, UNKNOWN_FACES_DIR)
+    #     logger.info('Training required. Proceed to training...')
+    #     train(face_client, person_group_id)
+    #
+    # # path of directory containing images to use the model on
+    # test_image_path_dir = ""
+    #
+    # results = recognise_faces(face_client, person_group_id, test_image_path_dir, unknown_faces_dir)
     # logger.info(results)
     exit(0)
 

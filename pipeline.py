@@ -53,8 +53,9 @@ def phase1_cache_episode_from_s3(bucket_name, episode_name):
     logger.info(f'Episode will be cached @ {file.name}')
     return file
 
+
 def save_extracted_frame(directory, frame):
-    filename = f"{frame.episode_number}_{frame.timestamp.replace(':', '_')}.jpg"
+    filename = f"{frame.episode_number}_{frame.timestamp.with_delimiter('_')}.jpg"
     logger.info(filename)
     dst_path = os.path.join(directory, filename)
     cv2.imwrite(dst_path, frame.frame)
@@ -114,12 +115,30 @@ def phase2(input_directory, unknown_faces_dir, result_logger, endpoint, azure_ke
 
 
 def phase3(result_logger: ResultLogger, db_endpoint, db_name, db_username, db_password, result_table):
-    logger.info('Estimating burned members')
+    logger.info('Estimating burned members...')
     list_of_dict = result_logger.estimate_burned_member()
     result_logger.bulk_update_entries(list_of_dict)
-    logger.info('Updating database')
+    logger.info('Updating database...')
     con = SqlConnector(result_logger.filepath, db_endpoint, db_name, db_username, db_password)
     con.bulk_insert_csv(result_table, [FIELDNAME_EP, FIELDNAME_TIME, FIELDNAME_BURNED_MEMBER])
+
+
+def save_cached_files(cache_dir_path, save_cached_path):
+    for resource in os.listdir(cache_dir_path):
+        try:
+            src = os.path.join(cache_dir_path, resource)
+            dst = os.path.join(save_cached_path, resource)
+            if os.path.isfile(src):
+                n = 1
+                name, ext = dst.split('.', 1)
+                while os.path.exists(dst):
+                    dst = f'{name}_({n}).{ext}'
+                move(src, dst)
+                logger.info(f'Cached file [{src}] was saved @ [{dst}]')
+            elif os.path.isdir(src):
+                save_cached_files(src, dst)
+        except BaseException as ex:
+            logger.warning(f'Error occurred while trying to saved cached file [{resource}]. File will not be saved: {ex.__class__.__name__}')
 
 
 def main():
@@ -167,9 +186,10 @@ def main():
                     logger.warning(f'No result file specified. Results will be cached @ {result_logger_file_path}')
                 else:
                     logger.warning(f'{old} is not a file. Results will be cached @ {result_logger_file_path}')
+
             if cache_dir is None:
-                if save_cached:
-                    save_cached = False
+                save_cached = False
+
             result_logger = ResultLogger(result_logger_file_path)
         except KeyError as er:
             logger.error('Error while initializing pipeline parameters due to missing environment variable.')
@@ -248,11 +268,7 @@ def main():
         )
         if save_cached:
             logger.info(f'Saving cached files to {save_cached_path}')
-            for file in os.listdir(cache_dir):
-                try:
-                    move(os.path.join(cache_dir.name, file), os.path.join(save_cached_path, file))
-                except BaseException as ex:
-                    logger.warning(f'Error occurred while trying to saved cached file [{file}]: {ex.__class__.__name__}')
+            save_cached_files(cache_dir.name, save_cached_path)
 
         logger.info('Pipeline complete')
     except:
