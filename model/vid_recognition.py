@@ -5,7 +5,7 @@ import os
 import re
 import cv2
 
-import skull_detection as sd
+import model.skull_detection as sd
 from logger.base_logger import logger
 
 
@@ -123,7 +123,7 @@ def process_stream(video_path, display):
     extracted_frames = []
     # processing parameters
     config = configparser.ConfigParser()
-    config.read('../strings.ini')
+    config.read('strings.ini')
     episode_number = get_episode_number(video_path)
     frame_skip_rate = calculate_skip_rate(vid_cap, int(config.get("SKULL", "sample_rate")))
     while vid_cap.isOpened():
