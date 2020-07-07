@@ -1,14 +1,7 @@
-import asyncio
-import io
 import glob
 import os
 import sys
 import time
-import uuid
-import requests
-import cv2
-from urllib.parse import urlparse
-from io import BytesIO
 from PIL import Image, ImageDraw
 import configparser
 from azure.cognitiveservices.vision.face import FaceClient
@@ -16,6 +9,11 @@ from msrest.authentication import CognitiveServicesCredentials
 from azure.cognitiveservices.vision.face.models import TrainingStatusType, Person, SnapshotObjectType, \
     OperationStatusType
 from logger.base_logger import logger
+
+# Use recognise_face() to handle Phase 2
+# frame_detection will no longer be needed, but keep it as backup
+# Date: 7 Jul 2020
+# Ko Gi Hun
 
 # Initialise strings from config file
 config = configparser.ConfigParser()
@@ -168,15 +166,16 @@ def recognise_faces(fc, img_path_dir, draw=False):
 
 
 if __name__ == '__main__':
-    face_client = authenticate_client()
+    # face_client = authenticate_client()
     # Create empty Person Group. Person Group ID must be lower case, alphanumeric, and/or with '-', '_'.
     # face_client.person_group.delete(PERSON_GROUP_ID)
 
-    training_required = init_person_group(face_client)
-    if training_required:
-        logger.info('Training required. Proceed to training...')
-        train(face_client)
+    # training_required = init_person_group(face_client)
+    # if training_required:
+    # logger.info('Training required. Proceed to training...')
+    # train(face_client)
 
-    results = recognise_faces(face_client, UNKNOWN_FACES_DIR)
-    logger.info(results)
+    # results = recognise_faces(face_client, UNKNOWN_FACES_DIR)
+    # logger.info(results)
+    exit(0)
 
