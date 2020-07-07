@@ -4,6 +4,7 @@ from logger.base_logger import logger
 from logger.result_logger import ResultLogger, FIELDNAME_BURNED_MEMBER, FIELDNAME_EP, FIELDNAME_TIME
 from utils.sql_connecter import SqlConnector
 from tempfile import TemporaryDirectory
+from shutil import move
 import boto3
 import cv2
 import os
@@ -116,8 +117,7 @@ def phase2(input_directory, known_face_encodings, detection_method, result_logge
 
 def phase3(result_logger: ResultLogger, db_endpoint, db_name, db_username, db_password, result_table):
     logger.info('Estimating burned members')
-    list_of_dict, test = result_logger.estimate_burned_member()
-    logger.info(test)
+    list_of_dict = result_logger.estimate_burned_member()
     result_logger.bulk_update_entries(list_of_dict)
     logger.info('Updating database')
     con = SqlConnector(result_logger.filepath, db_endpoint, db_name, db_username, db_password)
@@ -137,6 +137,8 @@ def main():
             display = config.getboolean('PIPELINE', 'display')
             s3_bucket_name = config.get('PIPELINE', 'episode_bucket_name')
             image_directory = config.get('PIPELINE', 'local_image_directory')
+            save_cached = config.getboolean('PIPELINE', 'save_if_cached')
+            save_cached_path = config.get('PIPELINE', 'save_cached_path')
             if os.path.isdir(image_directory):
                 logger.info(f'Images will be saved @ {image_directory}')
             else:
@@ -162,6 +164,10 @@ def main():
                     logger.warning(f'No result file specified. Results will be cached @ {result_logger_file_path}')
                 else:
                     logger.warning(f'{old} is not a file. Results will be cached @ {result_logger_file_path}')
+            if temp_dir is None:
+                if save_cached:
+                    save_cached = False
+
             result_logger = ResultLogger(result_logger_file_path)
             # skull detection (phase 1) parameters
             sample_rate = config.getint('SKULL', 'video_sample_rate')
@@ -229,6 +235,14 @@ def main():
             db_password=db_password,
             result_table=result_table
         )
+        if save_cached:
+            logger.info(f'Saving cached files to {save_cached_path}')
+            for file in os.listdir(temp_dir):
+                try:
+                    move(os.path.join(temp_dir.name, file), os.path.join(save_cached_path, file))
+                except BaseException as ex:
+                    logger.warning(f'Error occured while trying to saved cached file [{file}]: {ex.__class__.__name__}')
+
         logger.info('Pipeline complete')
     except:
         logger.error('Pipeline failed.')
