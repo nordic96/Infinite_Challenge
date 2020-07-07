@@ -45,8 +45,7 @@ def get_episode_number(filename):
 def detect_skull(frame, config):
     # resize_factor format: [height, width, channel]
     r = frame.shape
-    cv2_im = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    ret, jpeg = cv2.imencode('.jpg', cv2_im)
+    ret, jpeg = cv2.imencode('.jpg', frame)
     boxes = sd.detect(jpeg.tobytes(), config)
     return r, boxes
 
