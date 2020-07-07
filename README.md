@@ -1,3 +1,5 @@
+![Deploy to Amazon ECS](https://github.com/nordic96/Infinite_Challenge/workflows/Deploy%20to%20Amazon%20ECS/badge.svg)
+
 # Infinite Challenge [South Korea]
 "Challenge is Infinite". Infinite Challenge is a South Korean television entertainment program, distributed and syndicated by MBC.
 
