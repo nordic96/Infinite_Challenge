@@ -20,12 +20,28 @@ class ExtractedFrame:
         self.coord = coord
 
 
-def milli_to_timestamp(ms):
-    h, ms = divmod(ms, 60 * 60 * 1000)
-    m, ms = divmod(ms, 60 * 1000)
-    s, ms = divmod(ms, 1000)
-    timestamp = "{}:{:02d}:{:02d}:{:03d}".format(h, m, s, ms)
-    return timestamp
+class Timestamp:
+    DEFAULT_DELIMITER = ':'
+
+    def __init__(self, h, m, s, ms, delimiter=DEFAULT_DELIMITER):
+        self.delimiter = delimiter
+        self.h = h
+        self.m = m
+        self.s = s
+        self.ms = ms
+
+    @staticmethod
+    def from_milliseconds(ms, delimiter=DEFAULT_DELIMITER):
+        h, ms = divmod(ms, 60 * 60 * 1000)
+        m, ms = divmod(ms, 60 * 1000)
+        s, ms = divmod(ms, 1000)
+        return Timestamp(h, m, s, ms, delimiter)
+
+    def with_delimiter(self, delimiter):
+        return Timestamp(self.h, self.m, self.s, self.ms, delimiter)
+
+    def __str__(self):
+        return "{}{delim}{:02d}{delim}{:02d}{delim}{:03d}".format(self.h, self.m, self.s, self.ms, delim=self.delimiter)
 
 
 def get_episode_number(filename):
@@ -127,7 +143,7 @@ def process_stream(video_path, confidence, model_version, sample_rate=1000, disp
             continue
 
         # Time stamping
-        timestamp = milli_to_timestamp(millisecond)
+        timestamp = Timestamp.from_milliseconds(millisecond)
 
         # Determine skull coordinates
         retval = detect_skull(frame, confidence, model_version)

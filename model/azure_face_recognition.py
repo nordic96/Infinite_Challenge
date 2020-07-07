@@ -3,7 +3,6 @@ import os
 import sys
 import time
 from PIL import Image, ImageDraw
-import configparser
 from azure.cognitiveservices.vision.face import FaceClient
 from msrest.authentication import CognitiveServicesCredentials
 from azure.cognitiveservices.vision.face.models import TrainingStatusType, Person, SnapshotObjectType, \
@@ -16,32 +15,23 @@ from logger.base_logger import logger
 # Ko Gi Hun
 
 # Initialise strings from config file
-config = configparser.ConfigParser()
-config.read('strings.ini')
-
-ENDPOINT = config['FACE']['endpoint']
-KEY = config['FACE']['key']
-PERSON_GROUP_ID = 'infinite-challenge-group'
-DATASET_DIR = config['MAIN']['path_images']
-KNOWN_FACES_DIR = os.path.join(DATASET_DIR, 'known_faces')
-UNKNOWN_FACES_DIR = os.path.join(DATASET_DIR, 'unknown_faces')
 
 
 # Create an authenticated FaceClient.
-def authenticate_client():
-    logger.info('authenticating azure face client at {}...'.format(ENDPOINT))
-    fc = FaceClient(ENDPOINT, CognitiveServicesCredentials(KEY))
+def authenticate_client(endpoint, key):
+    logger.info('Authenticating Azure Face Client at {}...'.format(endpoint))
+    fc = FaceClient(endpoint, CognitiveServicesCredentials(key))
     return fc
 
 
-def init_person_group(fc):
-    train_req = 1
+def init_person_group(fc, person_group_id, known_faces_dir):
+    train_required = 1
     person_group_list = fc.person_group.list()
     if len(person_group_list) == 0:
-        logger.info('Person Group ID {} does not exist, creating a new one in azure...'.format(PERSON_GROUP_ID))
-        fc.person_group.create(person_group_id=PERSON_GROUP_ID, name=PERSON_GROUP_ID)
+        logger.info('Person Group ID {} does not exist, creating a new one in azure...'.format(person_group_id))
+        fc.person_group.create(person_group_id=person_group_id, name=person_group_id)
     else:
-        logger.info('Person Group initialized for {}. Proceeding with person object creation..'.format(PERSON_GROUP_ID))
+        logger.info('Person Group initialized for {}. Proceeding with person object creation..'.format(person_group_id))
 
     person_group_list = fc.person_group.list()
     if len(person_group_list) != 0:
@@ -50,17 +40,17 @@ def init_person_group(fc):
         logger.info('people objects are already added. Skipping creation...')
 
     else:
-        for member in os.listdir(KNOWN_FACES_DIR):
+        for member in os.listdir(known_faces_dir):
             logger.info('Creating person object in azure: ' + member)
-            member_obj = fc.person_group_person.create(PERSON_GROUP_ID, member)
+            member_obj = fc.person_group_person.create(person_group_id, member)
 
-            member_path = os.path.join(KNOWN_FACES_DIR, member)
+            member_path = os.path.join(known_faces_dir, member)
             member_images = [file for file in glob.glob('{}/*.*'.format(member_path))]
             count = 0
             for member_image in member_images:
                 ch = open(member_image, 'r+b')
                 try:
-                    face_client.person_group_person.add_face_from_stream(PERSON_GROUP_ID, member_obj.person_id, ch)
+                    fc.person_group_person.add_face_from_stream(person_group_id, member_obj.person_id, ch)
                 except Exception as ex:
                     logger.info(ex)
                     continue
@@ -69,13 +59,13 @@ def init_person_group(fc):
     return train_required
 
 
-def train(fc):
+def train(fc, person_group_id):
     logger.info('Training the person group...')
     # Train the person group
-    fc.person_group.train(PERSON_GROUP_ID)
+    fc.person_group.train(person_group_id)
 
     while True:
-        training_status = fc.person_group.get_training_status(PERSON_GROUP_ID)
+        training_status = fc.person_group.get_training_status(person_group_id)
         logger.info("Training status: {}.".format(training_status.status))
         if training_status.status is TrainingStatusType.succeeded:
             break
@@ -84,8 +74,8 @@ def train(fc):
         time.sleep(5)
 
 
-def get_name_by_id(fc, person_id):
-    person = fc.person_group_person.get(PERSON_GROUP_ID, person_id)
+def get_name_by_id(fc, person_id, person_group_id):
+    person = fc.person_group_person.get(person_group_id, person_id)
     return person.name
 
 
@@ -100,52 +90,60 @@ def getRectangle(face_dictionary):
     return (left, top), (right, bottom)
 
 
-def recognise_faces(fc, img_path_dir, draw=False):
+def recognise_faces(fc, img_path_dir, person_group_id, unknown_faces_dir, label_and_save=False):
     """
     Identify a face against a defined PersonGroup
     """
+    logger.info('Loading images...')
     test_image_array = [file for file in glob.glob('{}/*.*'.format(img_path_dir))]
     no_files = len(test_image_array)
     no_skips = 0
     result_dict = {}
 
     for image_path in test_image_array:
+        basename = os.path.basename(image_path)
+        logger.info(f'Processing {image_path}...')
+        results = None
+        faces_coord_dict = {}
+        draw = None
+        labelled_image = None
         try:
             image = open(image_path, 'r+b')
             # Detect faces
             face_ids = []
+            logger.info(f'Detecting faces using Azure Face Client...')
             detected_faces = fc.face.detect_with_stream(image)
-            faces_coord_dict = {}
+
 
             if len(detected_faces) == 0:
                 no_skips += 1
-                raise Exception('No faces detected for {}. Skipping...'.format(image_path))
+                logger.info('No faces detected.')
+            logger.info(f'Detected {len(detected_faces)} faces.')
             for face in detected_faces:
                 face_ids.append(face.face_id)
                 faces_coord_dict[face.face_id] = getRectangle(face)
                 # logger.info('Face ID: {}, coordinates: {}'.format(face.face_id, getRectangle(face)))
             # Identify faces
-            results = fc.face.identify(face_ids, PERSON_GROUP_ID)
-        except Exception as ex:
-            logger.info(ex)
-            continue
+            results = fc.face.identify(face_ids, person_group_id)
+        except BaseException as ex:
+            logger.warning(f'Error occurred while processing {basename}: {ex.__class__.__name__}')
+        if results is None:
+            logger.info('No faces to identify in {}.'.format(basename))
+            return result_dict
 
-        logger.info('Identifying faces in {}'.format(os.path.basename(image.name)))
+        logger.info('Identifying faces using Azure Face Client...')
 
-        if not results:
-            logger.info('No person identified in the person group for faces from {}.'.format(os.path.basename(image.name)))
-
-        if draw:
-            img = Image.open(image_path)
-            draw = ImageDraw.Draw(img)
+        if label_and_save:
+            labelled_image = Image.open(image_path)
+            draw = ImageDraw.Draw(labelled_image)
 
         person_detected_arr = []
         person_coord_arr = []
         for person in results:
-            detected_name = get_name_by_id(fc, person.candidates[0].person_id)
+            detected_name = get_name_by_id(fc, person.candidates[0].person_id, person_group_id)
             logger.info('{} is identified in {} {}, with a confidence of {}'.format(
                 detected_name,
-                os.path.basename(image.name),
+                basename,
                 faces_coord_dict[person.face_id],
                 person.candidates[0].confidence,
             ))
@@ -153,12 +151,11 @@ def recognise_faces(fc, img_path_dir, draw=False):
             person_detected_arr.append(detected_name)
             person_coord_arr.append(faces_coord_dict[person.face_id])
 
-            if draw:
+            if label_and_save:
                 draw.rectangle(faces_coord_dict[person.face_id], outline='red')
-        if draw:
-            img.save(os.path.join(UNKNOWN_FACES_DIR, '{}_output.png'.format(detected_name)))
+                labelled_image.save(os.path.join(unknown_faces_dir, '{}_output.png'.format(detected_name)))
 
-        result_dict[os.path.basename(image.name)] = (person_detected_arr, person_coord_arr)
+        result_dict[os.path.basename(basename)] = (person_detected_arr, person_coord_arr)
 
     logger.info('Result: Total {} images, {} skipped images...'.format(no_files, no_skips))
     # Returns the face & coord dict

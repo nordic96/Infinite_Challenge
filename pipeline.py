@@ -1,5 +1,5 @@
 from model import vid_recognition as vr
-from model import frame_recognition as fr
+from model import azure_face_recognition as afr
 from logger.base_logger import logger
 from logger.result_logger import ResultLogger, FIELDNAME_BURNED_MEMBER, FIELDNAME_EP, FIELDNAME_TIME
 from utils.sql_connecter import SqlConnector
@@ -11,11 +11,12 @@ import os
 import configparser
 import traceback
 import datetime
-import pickle
 
+Timestamp = vr.Timestamp
 JOB_INDEX = 'IC_JOB_INDEX'
 JOB_INDEX_OFFSET = 'IC_INDEX_OFFSET'
 RDS_PASSWORD = 'IC_RDS_PASSWORD'
+AZURE_KEY = 'IC_AZURE_KEY'
 
 
 # Main script for skull detection and extraction of relevant frames from episodes
@@ -93,26 +94,21 @@ def phase1(episode_num, bucket, output_directory, result_logger, sample_rate, co
 
 # 1. process all images in the output directory of phase1 using frame_det model
 # 2. update result.csv for each image
-def phase2(input_directory, known_face_encodings, detection_method, result_logger, display):
+def phase2(input_directory, unknown_faces_dir, result_logger, endpoint, azure_key, person_group_id, display):
     images = os.listdir(input_directory)
     logger.info(f'Found {len(images)} frame(s) to process...')
-    count = 0
-    total = len(images)
-    for image in images:
-        try:
-            count += 1
-            path = os.path.join(input_directory, image)
-            logger.info(f'Processing frame {count}/{total}')
-            processed_img = fr.process_image(path, known_face_encodings, detection_method, display)
-            result_logger.update_face_entry(
-                processed_img.episode_number,
-                processed_img.timestamp,
-                processed_img.coordinate,
-                processed_img.name
-            )
-        except BaseException as ex:
-            logger.error('Frame {}/{}: {}\n{}'.format(count, total, ex.__class__.__name__, '\n'.join(ex.args)))
-            raise ex
+    fc = afr.authenticate_client(endpoint, azure_key)
+    mappings = afr.recognise_faces(fc, input_directory, person_group_id, unknown_faces_dir, label_and_save=display)
+    for filename in mappings:
+        names, faces = mappings[filename]
+        entry_id = filename.split('.')[0]
+        ep, h, m, s, ms = entry_id.split('_')
+        result_logger.update_face_entry(
+            ep,
+            Timestamp(h, m, ms, s),
+            faces,
+            names
+        )
 
 
 def phase3(result_logger: ResultLogger, db_endpoint, db_name, db_username, db_password, result_table):
@@ -127,25 +123,30 @@ def phase3(result_logger: ResultLogger, db_endpoint, db_name, db_username, db_pa
 def main():
     start = datetime.datetime.now()
     try:
-        logger.info('Setting up pipeline')
+        logger.info('Initializing pipeline parameters...')
         # Initialise strings from config file
+        config = configparser.ConfigParser()
+        # pipeline main parameters
         try:
-            config = configparser.ConfigParser()
             config.read('strings.ini')
             # pipeline parameters
-            temp_dir = None
+            db_password = os.environ[RDS_PASSWORD]
+            job_idx = int(os.environ[JOB_INDEX])
+            job_idx_offset = int(os.environ[JOB_INDEX_OFFSET])
+            episode = job_idx + job_idx_offset
             display = config.getboolean('PIPELINE', 'display')
             s3_bucket_name = config.get('PIPELINE', 'episode_bucket_name')
             image_directory = config.get('PIPELINE', 'local_image_directory')
             save_cached = config.getboolean('PIPELINE', 'save_if_cached')
             save_cached_path = config.get('PIPELINE', 'save_cached_path')
+            cache_dir = None
             if os.path.isdir(image_directory):
                 logger.info(f'Images will be saved @ {image_directory}')
             else:
                 old = image_directory
-                if temp_dir is None:
-                    temp_dir = TemporaryDirectory()
-                image_directory = os.path.join(temp_dir.name, 'images')
+                if cache_dir is None:
+                    cache_dir = TemporaryDirectory()
+                image_directory = os.path.join(cache_dir.name, 'images')
                 os.mkdir(image_directory)
                 if old is None or len(old.strip()) == 0:
                     logger.warning(f'No directory specified. Output images will be cached @ {image_directory}')
@@ -156,53 +157,55 @@ def main():
                 logger.info(f'Results will be saved @ {result_logger_file_path}')
             else:
                 old = result_logger_file_path
-                if temp_dir is None:
-                    temp_dir = TemporaryDirectory()
-                result_logger_file_path = os.path.join(temp_dir.name, 'results.csv')
+                if cache_dir is None:
+                    cache_dir = TemporaryDirectory()
+                result_logger_file_path = os.path.join(cache_dir.name, 'results.csv')
                 open(result_logger_file_path, 'w').write('')
                 if old is None or len(old.strip()) == 0:
                     logger.warning(f'No result file specified. Results will be cached @ {result_logger_file_path}')
                 else:
                     logger.warning(f'{old} is not a file. Results will be cached @ {result_logger_file_path}')
-            if temp_dir is None:
+            if cache_dir is None:
                 if save_cached:
                     save_cached = False
-
             result_logger = ResultLogger(result_logger_file_path)
-            # skull detection (phase 1) parameters
+        except KeyError as er:
+            logger.error('Error while initializing pipeline parameters due to missing environment variable.')
+            raise er
+        except BaseException as ex:
+            logger.error("Error while initializing pipeline miscellaneous parameters")
+            logger.error("Failure while initializing pipeline parameters")
+            raise ex
+        # skull detection (phase 1) parameters
+        try:
             sample_rate = config.getint('SKULL', 'video_sample_rate')
             model_version = config.get('SKULL', 'model_version')
             confidence = config.getfloat("SKULL", "confidence_threshold")
-            # face recognition (phase 2) parameters
-            detection_method = config.get('FACE', 'detection_method')
-            encodings = config.get('FACE', 'encodings_path')
-            encodings = pickle.load(open(encodings, 'rb'))
-            # updating database (phase 3) parameters
+        except BaseException as ex:
+            logger.error("Failure while initializing pipeline phase 1 parameters")
+            raise ex
+        # face recognition (phase 2) parameters
+        try:
+            endpoint = config.get('FACE', 'endpoint')
+            person_group_id = config.get('FACE', 'person_group_id')
+            known_faces_dir = config.get('FACE', 'known_faces_dir')
+            unknown_faces_dir = config.get('FACE', 'unknown_faces_dir')
+            azure_key = os.environ[AZURE_KEY]
+        except KeyError as er:
+            logger.error(f'{AZURE_KEY} environment variable not set')
+            raise er
+        except BaseException as ex:
+            logger.error("Failure while initializing pipeline phase 2 parameters")
+            raise ex
+        # updating database (phase 3) parameters
+        try:
             result_table = config.get('AWS RDS', 'result_table_name')
             db_server_endpoint = config.get('AWS RDS', 'endpoint')
             db_name = config.get('AWS RDS', 'db_name')
             db_username = config.get('AWS RDS', 'uname')
-        except configparser.Error as ex:
-            logger.error("Failure while initializing config variables")
+        except BaseException as ex:
+            logger.error("Failure while initializing pipeline phase 3 parameters")
             raise ex
-
-        # Initialize job parameters from environment variables
-        try:
-            db_password = os.environ[RDS_PASSWORD]
-        except KeyError as er:
-            logger.error(f'{RDS_PASSWORD} environment variable not set')
-            raise er
-        try:
-            job_idx = int(os.environ[JOB_INDEX])
-        except KeyError as er:
-            logger.error(f'{JOB_INDEX} environment variable not set')
-            raise er
-        try:
-            job_idx_offset = int(os.environ[JOB_INDEX_OFFSET])
-        except KeyError as er:
-            logger.error(f'{JOB_INDEX_OFFSET} environment variable not set')
-            raise er
-        episode = job_idx + job_idx_offset
 
         # phase 1
         logger.info('Starting pipeline phase 1: extract frames with skulls...')
@@ -220,9 +223,11 @@ def main():
         logger.info('Starting pipeline phase 2: recognize faces in extracted frames...')
         phase2(
             input_directory=image_directory,
-            known_face_encodings=encodings,
-            detection_method=detection_method,
+            unknown_faces_dir=unknown_faces_dir,
             result_logger=result_logger,
+            endpoint=endpoint,
+            azure_key=azure_key,
+            person_group_id=person_group_id,
             display=display
         )
         # phase 3
@@ -237,11 +242,11 @@ def main():
         )
         if save_cached:
             logger.info(f'Saving cached files to {save_cached_path}')
-            for file in os.listdir(temp_dir):
+            for file in os.listdir(cache_dir):
                 try:
-                    move(os.path.join(temp_dir.name, file), os.path.join(save_cached_path, file))
+                    move(os.path.join(cache_dir.name, file), os.path.join(save_cached_path, file))
                 except BaseException as ex:
-                    logger.warning(f'Error occured while trying to saved cached file [{file}]: {ex.__class__.__name__}')
+                    logger.warning(f'Error occurred while trying to saved cached file [{file}]: {ex.__class__.__name__}')
 
         logger.info('Pipeline complete')
     except:
