@@ -15,8 +15,9 @@ import datetime
 Timestamp = vr.Timestamp
 JOB_INDEX = 'IC_JOB_INDEX'
 JOB_INDEX_OFFSET = 'IC_INDEX_OFFSET'
-RDS_PASSWORD = 'IC_RDS_PASSWORD'
-AZURE_KEY = 'IC_AZURE_KEY'
+AWS_RDS_PASSWORD = 'IC_RDS_PASSWORD'
+AZURE_KEY_SKULL = 'IC_AZURE_KEY_SKULL'
+AZURE_KEY_FACE = 'IC_AZURE_KEY_FACE'
 
 
 # Main script for skull detection and extraction of relevant frames from episodes
@@ -62,7 +63,7 @@ def save_extracted_frame(directory, frame):
 # 1. process a single video using model
 # 2. cache images with skulls
 # 3. update result.csv for each image
-def phase1(episode_num, bucket, output_directory, result_logger, sample_rate, confidence, model_version, display):
+def phase1(episode_num, bucket, output_directory, result_logger, sample_rate, azure_key, confidence, model_version, display):
     try:
         # get episode from S3
         episode_filename = f'episode{episode_num}.mp4'
@@ -75,6 +76,7 @@ def phase1(episode_num, bucket, output_directory, result_logger, sample_rate, co
         logger.info('Processing video')
         extracted_frames = vr.process_stream(
             video_path=video_path,
+            azure_key=azure_key,
             confidence=confidence,
             model_version=model_version,
             sample_rate=sample_rate,
@@ -130,7 +132,7 @@ def main():
         try:
             config.read('strings.ini')
             # pipeline parameters
-            db_password = os.environ[RDS_PASSWORD]
+            db_password = os.environ[AWS_RDS_PASSWORD]
             job_idx = int(os.environ[JOB_INDEX])
             job_idx_offset = int(os.environ[JOB_INDEX_OFFSET])
             episode = job_idx + job_idx_offset
@@ -181,6 +183,10 @@ def main():
             sample_rate = config.getint('SKULL', 'video_sample_rate')
             model_version = config.get('SKULL', 'model_version')
             confidence = config.getfloat("SKULL", "confidence_threshold")
+            azure_key_skull = os.environ[AZURE_KEY_SKULL]
+        except KeyError as er:
+            logger.error(f'{AZURE_KEY_SKULL} environment variable not set')
+            raise er
         except BaseException as ex:
             logger.error("Failure while initializing pipeline phase 1 parameters")
             raise ex
@@ -188,11 +194,10 @@ def main():
         try:
             endpoint = config.get('FACE', 'endpoint')
             person_group_id = config.get('FACE', 'person_group_id')
-            known_faces_dir = config.get('FACE', 'known_faces_dir')
             unknown_faces_dir = config.get('FACE', 'unknown_faces_dir')
-            azure_key = os.environ[AZURE_KEY]
+            azure_key_face = os.environ[AZURE_KEY_FACE]
         except KeyError as er:
-            logger.error(f'{AZURE_KEY} environment variable not set')
+            logger.error(f'{AZURE_KEY_FACE} environment variable not set')
             raise er
         except BaseException as ex:
             logger.error("Failure while initializing pipeline phase 2 parameters")
@@ -215,6 +220,7 @@ def main():
             output_directory=image_directory,
             result_logger=result_logger,
             sample_rate=sample_rate,
+            azure_key=azure_key_skull,
             model_version=model_version,
             confidence=confidence,
             display=display
@@ -226,7 +232,7 @@ def main():
             unknown_faces_dir=unknown_faces_dir,
             result_logger=result_logger,
             endpoint=endpoint,
-            azure_key=azure_key,
+            azure_key=azure_key_face,
             person_group_id=person_group_id,
             display=display
         )

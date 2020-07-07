@@ -3,22 +3,28 @@ import json
 from logger.base_logger import logger
 
 
-headers = {
-    # Request headers
-    'Content-Type': 'application/octet-stream',
-    'Prediction-key': '646c53c4762c4d149d9fd94690d2869d',
-}
+def headers_with_prediction_key(key):
+    assert isinstance(key, str.__class__)
+    assert len(key) > 0
+    if len(key) == 0:
+        raise ValueError('Prediction Key must be specified')
+    return {
+        # Request headers
+        'Content-Type': 'application/octet-stream',
+        'Prediction-key': key
+    }
 
 
-def detect(img, confidence, model_version):
-    data = request_detection(img, model_version)
+def detect(img, key, confidence, model_version):
+    data = request_detection(img, model_version, key)
     boxes = interpret_result(data, confidence)
     return boxes
 
 
-def request_detection(img, model_version):
+def request_detection(img, model_version, key):
     try:
         conn = http.client.HTTPSConnection('skull-detection-sea.cognitiveservices.azure.com')
+        headers_with_prediction_key(key)
         conn.request("POST", f'/customvision/v3.0/Prediction/ae33224a-a67d-4489-bd07-a4405035700f/detect/iterations/{model_version}/image', img, headers)
         response = conn.getresponse()
         data = response.read()

@@ -123,7 +123,7 @@ def calculate_skip_rate(vid, ms_skip_rate):
 
 
 # returns relevant frames and data (coordinates)
-def process_stream(video_path, confidence, model_version, sample_rate=1000, display=False):
+def process_stream(video_path, azure_key, confidence, model_version, sample_rate=1000, display=False):
     logger.info(f'Processing {os.path.basename(video_path)} with these settings: Sample rate={sample_rate}ms; Confidence={confidence}; Model Version={model_version}')
     vid_cap = cv2.VideoCapture(video_path)
     # initialize output list
@@ -146,7 +146,7 @@ def process_stream(video_path, confidence, model_version, sample_rate=1000, disp
         timestamp = Timestamp.from_milliseconds(millisecond)
 
         # Determine skull coordinates
-        retval = detect_skull(frame, confidence, model_version)
+        retval = detect_skull(frame, azure_key, confidence, model_version)
         skull_coords = []
         if retval:
             resize_factor, skull_coords_resized = retval
