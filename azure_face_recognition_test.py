@@ -91,22 +91,41 @@ def get_name_by_id(fc, person_id):
     return person.name
 
 
-def detect_faces(fc, img_path_dir):
+# Convert width height to a point in a rectangle
+def getRectangle(face_dictionary):
+    rect = face_dictionary.face_rectangle
+    left = rect.left
+    top = rect.top
+    right = left + rect.width
+    bottom = top + rect.height
+
+    return (left, top), (right, bottom)
+
+
+def recognise_faces(fc, img_path_dir, draw=False):
     """
     Identify a face against a defined PersonGroup
     """
     test_image_array = [file for file in glob.glob('{}/*.*'.format(img_path_dir))]
+    no_files = len(test_image_array)
+    no_skips = 0
+    result_dict = {}
+
     for image_path in test_image_array:
         try:
             image = open(image_path, 'r+b')
             # Detect faces
             face_ids = []
-            faces = fc.face.detect_with_stream(image)
-            if len(faces) == 0:
-                raise Exception('No faces detected for {}. Skipping...'.format(image_path))
-            for face in faces:
-                face_ids.append(face.face_id)
+            detected_faces = fc.face.detect_with_stream(image)
+            faces_coord_dict = {}
 
+            if len(detected_faces) == 0:
+                no_skips += 1
+                raise Exception('No faces detected for {}. Skipping...'.format(image_path))
+            for face in detected_faces:
+                face_ids.append(face.face_id)
+                faces_coord_dict[face.face_id] = getRectangle(face)
+                # logger.info('Face ID: {}, coordinates: {}'.format(face.face_id, getRectangle(face)))
             # Identify faces
             results = fc.face.identify(face_ids, PERSON_GROUP_ID)
         except Exception as ex:
@@ -114,15 +133,38 @@ def detect_faces(fc, img_path_dir):
             continue
 
         logger.info('Identifying faces in {}'.format(os.path.basename(image.name)))
+
         if not results:
             logger.info('No person identified in the person group for faces from {}.'.format(os.path.basename(image.name)))
+
+        if draw:
+            img = Image.open(image_path)
+            draw = ImageDraw.Draw(img)
+
+        person_detected_arr = []
+        person_coord_arr = []
         for person in results:
-            logger.info('Person for face ID {} is identified in {} with a confidence of {}: {}.'.format(
-                person.face_id,
+            detected_name = get_name_by_id(fc, person.candidates[0].person_id)
+            logger.info('{} is identified in {} {}, with a confidence of {}'.format(
+                detected_name,
                 os.path.basename(image.name),
+                faces_coord_dict[person.face_id],
                 person.candidates[0].confidence,
-                get_name_by_id(fc, person.candidates[0].person_id)
             ))
+
+            person_detected_arr.append(detected_name)
+            person_coord_arr.append(faces_coord_dict[person.face_id])
+
+            if draw:
+                draw.rectangle(faces_coord_dict[person.face_id], outline='red')
+        if draw:
+            img.save(os.path.join(UNKNOWN_FACES_DIR, '{}_output.png'.format(detected_name)))
+
+        result_dict[os.path.basename(image.name)] = (person_detected_arr, person_coord_arr)
+
+    logger.info('Result: Total {} images, {} skipped images...'.format(no_files, no_skips))
+    # Returns the face & coord dict
+    return result_dict
 
 
 if __name__ == '__main__':
@@ -135,6 +177,6 @@ if __name__ == '__main__':
         logger.info('Training required. Proceed to training...')
         train(face_client)
 
-    detect_faces(face_client, UNKNOWN_FACES_DIR)
-
+    results = recognise_faces(face_client, UNKNOWN_FACES_DIR)
+    logger.info(results)
 
