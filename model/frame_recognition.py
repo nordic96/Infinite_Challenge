@@ -1,7 +1,5 @@
 import face_recognition
 import os
-import argparse
-import pickle
 import cv2
 import imutils
 from logger import base_logger
@@ -57,7 +55,7 @@ def process_recognition(data, encodings):
 
 
 def locate_faces(image, detection_method):
-    base_logger.logger.info("resizing face...")
+    base_logger.logger.info("Resizing face...")
 
     # convert to rgb
     rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -69,17 +67,17 @@ def locate_faces(image, detection_method):
 
     # Detecting the coordinates of the bounding boxes corresponding to each face in the input image
     # then compute the facial embeddings for each face
-    base_logger.logger.info("recognizing faces...")
+    base_logger.logger.info("Recognizing faces...")
     resized_boxes = face_recognition.face_locations(rgb, model=detection_method)
-    encodings = face_recognition.face_encodings(rgb, resized_boxes)
+    encodings_of_detected_faces = face_recognition.face_encodings(rgb, resized_boxes)
     boxes = []
-    for (a,b,c,d) in resized_boxes:
+    for (a, b, c, d) in resized_boxes:
         a = int(a * r)
-        b = int(b* r)
-        c = int(c* r)
-        d = int(d* r)
-        boxes.append((a,b,c,d))
-    return boxes, encodings
+        b = int(b * r)
+        c = int(c * r)
+        d = int(d * r)
+        boxes.append((a, b, c, d))
+    return boxes, encodings_of_detected_faces
 
 
 def label_image(image, title, boxes, names):
@@ -97,28 +95,30 @@ def label_image(image, title, boxes, names):
 def display_results(processed_image):
     labelled = label_image(
         processed_image.image,
-        "ep:{} time:{}".format(processed_image.episode_number, processed_image.timestamp),
+        "ep:{} {}".format(processed_image.episode_number, processed_image.timestamp),
         processed_image.coordinate,
         processed_image.name
     )
-
-    cv2.imshow("Result", labelled)
-    cv2.waitKey(1)
+    cv2.imshow("Recognize faces", labelled)
+    cv2.waitKey(1000)
     pass
 
 
-def process_image(image_path, data, detection_method, display):
+def process_image(image_path, known_face_encoding_data, detection_method, display=False):
     episode_number, timestamp, image = fetch_unprocessed_img(image_path)
     boxes, encodings = locate_faces(image, detection_method)
-    names = process_recognition(data, encodings)
+    names = process_recognition(known_face_encoding_data, encodings)
     processed = ProcessedImage(image, episode_number, timestamp, names, boxes)
-    if display == 1:
+    if display:
         display_results(processed)
+        cv2.destroyAllWindows()
 
     return processed
 
 
 if __name__ == "__main__":
+    import argparse
+    import pickle
     # Initialize arguments
     ap = argparse.ArgumentParser()
     ap.add_argument("-e", "--encodings", required=True, help="path to serialized db of facial encodings")
