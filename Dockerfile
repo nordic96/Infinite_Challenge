@@ -1,8 +1,6 @@
 # Last updated: 2 July 2020
 # Modified from: https://github.com/ageitgey/face_recognition/blob/master/Dockerfile
-
 FROM python:3.8-slim
-
 RUN apt-get -y update
 RUN apt-get install -y --fix-missing \
     build-essential \
@@ -27,17 +25,13 @@ RUN apt-get install -y --fix-missing \
     unixodbc-dev \
     zip \
     && apt-get clean && rm -rf /tmp/* /var/tmp/*
-
 RUN cd ~ && \
     mkdir -p dlib && \
     git clone -b 'v19.9' --single-branch https://github.com/davisking/dlib.git dlib/ && \
     cd  dlib/ && \
     python3 setup.py install --yes USE_AVX_INSTRUCTIONS
-
 # copy all files in directory
 COPY . /
-
 RUN pip3 install -r /requirements.txt
-
 RUN ["chmod", "+x", "/docker_entrypoint.sh"]
 ENTRYPOINT ["/docker_entrypoint.sh"]

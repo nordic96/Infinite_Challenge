@@ -1,6 +1,4 @@
 import pyodbc
-import argparse
-import configparser
 import pandas as pd
 from logger.base_logger import logger
 
@@ -8,34 +6,24 @@ from logger.base_logger import logger
 # Developed Date: 3 Jul 2020
 # Developer: Ko Gi Hun
 
-# Initialise strings from config file
-config = configparser.ConfigParser()
-config.read('strings.ini')
-
-SERVER_ENDPOINT = config['AWS RDS']['endpoint']
-DB_NAME = config['AWS RDS']['db_name']
-USER_NAME = config['AWS RDS']['uname']
-DB_PW = config['AWS RDS']['pw']
-
-# Connection String for SQL Server connection
-CONN_STRING = 'DRIVER={ODBC Driver 17 for SQL Server}' \
-              + ';SERVER={{{}}}; DATABASE={{{}}};'.format(SERVER_ENDPOINT, DB_NAME) \
-              + 'UID={{{}}}; PWD={{{}}}'.format(USER_NAME, DB_PW)
-
-
-# Description: SQL Connector for AWS RDS
-# Developed Date: 2 Jul 2020
-# Developer: Ko Gi Hun
-
 
 class SqlConnector:
-    def __init__(self, file_path):
-        try:
-            self.conn = pyodbc.connect(CONN_STRING)
-        except pyodbc.Error as ex:
-            logger.error(ex)
-        self.cursor = self.conn.cursor()
+    def __init__(self, file_path, db_endpoint, db_name, db_uid, db_pw):
         self.file_path = file_path
+        connection_string = 'DRIVER={ODBC Driver 17 for SQL Server}; ' \
+                                 + f'SERVER={db_endpoint}; ' \
+                                   f'DATABASE={db_name}; ' \
+                                   f'UID={db_uid}; ' \
+                                   f'PWD={db_pw}'
+
+        try:
+            logger.debug(connection_string)
+            self.conn = pyodbc.connect(connection_string)
+            self.cursor = self.conn.cursor()
+            logger.info('Able to connect.')
+        except pyodbc.Error as ex:
+            logger.error('Failed to connect.')
+            raise ex
 
     def execute(self, query, type):
         logger.info(query)
@@ -52,41 +40,28 @@ class SqlConnector:
                 self.conn.commit()
         except pyodbc.Error as ex:
             logger.error(ex)
+            raise ex
 
-    def bulk_insert_csv(self, table_name, header):
+    def bulk_insert_csv(self, table_name, cols):
         try:
             # Reading from CSV file
-            df = pd.read_csv(self.file_path, encoding='utf8', header=header)
+            df = pd.read_csv(self.file_path, encoding='utf8', usecols=cols)
             df = df.values.tolist()
+            if not df:
+                logger.info('No entries to insert into database.')
+                return
+            logger.info('Successfully read {} rows from CSV file {}'.format(len(df), self.file_path))
         except pd.io.common.EmptyDataError as ex:
             logger.error(ex)
-
-        logger.info('Successfully read rows from CSV file {}'.format(self.file_path))
-        no_rows = 0
-        for row in df:
-            logger.info(row)
-            no_rows += 1
+            raise ex
         try:
+            column_str = str(tuple(cols)).replace("'", "\"")
+            wildcard_str = str(tuple(map(lambda x: "?", cols))).replace("'", "")
+            query_template = 'INSERT INTO {} {} VALUES {}'.format(table_name, column_str, wildcard_str)
+            logger.debug(f'executemany query template: \'{query_template}\'')
             # Performing Bulk Insert into RDS
-            string = '''INSERT INTO {} VALUES (?, ?, ?)'''.format(table_name)
-            logger.info(string)
-            result = self.cursor.executemany(string, df)
-            self.cursor.commit()
+            self.cursor.executemany(query_template, df)
+            logger.info('Insert success.')
         except pyodbc.Error as ex:
             logger.error(ex)
-        logger.info('Affected rows: {}'.format(no_rows))
-
-
-# Main function for testing
-ap = argparse.ArgumentParser()
-ap.add_argument("-i", "--input", required=True, help="input directory for csv file")
-args = vars(ap.parse_args())
-
-if __name__ == '__main__':
-    sql_conn = SqlConnector(args['input'])
-    # BULK INSERT example from table skull
-    sql_conn.bulk_insert_csv('skull', header=None)
-
-    #SELECT example from table skull
-    result = sql_conn.execute('SELECT * FROM skull;', 'SELECT')
-    #logger.info(result)
+            raise ex
