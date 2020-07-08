@@ -1,10 +1,7 @@
 import subprocess
-import configparser
-import argparse
 import os
 import re
 import cv2
-
 import model.skull_detection as sd
 from logger.base_logger import logger
 
@@ -23,12 +20,28 @@ class ExtractedFrame:
         self.coord = coord
 
 
-def milli_to_timestamp(ms):
-    h, ms = divmod(ms, 60 * 60 * 1000)
-    m, ms = divmod(ms, 60 * 1000)
-    s, ms = divmod(ms, 1000)
-    timestamp = "{}:{}:{}:{}".format(h, m, s, ms)
-    return timestamp
+class Timestamp:
+    DEFAULT_DELIMITER = ':'
+
+    def __init__(self, h, m, s, ms, delimiter=DEFAULT_DELIMITER):
+        self.delimiter = delimiter
+        self.h = h
+        self.m = m
+        self.s = s
+        self.ms = ms
+
+    @staticmethod
+    def from_milliseconds(ms, delimiter=DEFAULT_DELIMITER):
+        h, ms = divmod(ms, 60 * 60 * 1000)
+        m, ms = divmod(ms, 60 * 1000)
+        s, ms = divmod(ms, 1000)
+        return Timestamp(h, m, s, ms, delimiter)
+
+    def with_delimiter(self, delimiter):
+        return Timestamp(self.h, self.m, self.s, self.ms, delimiter)
+
+    def __str__(self):
+        return "{}{delim}{:02d}{delim}{:02d}{delim}{:03d}".format(self.h, self.m, self.s, self.ms, delim=self.delimiter)
 
 
 def get_episode_number(filename):
@@ -42,31 +55,28 @@ def get_episode_number(filename):
 
 
 # Skull detection with Azure Cognitive Services
-def detect_skull(frame, config):
+def detect_skull(frame, key, confidence, model_version):
     # resize_factor format: [height, width, channel]
     r = frame.shape
     ret, jpeg = cv2.imencode('.jpg', frame)
-    boxes = sd.detect(jpeg.tobytes(), config)
+    boxes = sd.detect(jpeg.tobytes(), key, confidence, model_version)
     return r, boxes
 
 
 # Skull detection with local YOLOv5 component
-def detect_skull_yolo(frame, config, timestamp):
+def detect_skull_yolo(frame, timestamp, confidence, image_num, yolov5_path, cache_path, result_path):
     # resize_factor format: [height, width, channel]
     r = frame.shape
     # Get paths
-    yolov5_path = config.get("YOLO", "path_yolov5")
-    cache_path = config.get("YOLO", "path_cache")
-    result_path = config.get("YOLO", "path_result_cache")
     coord_path = f"{result_path}/skull_detect_cache.txt"
     cv2.imwrite(f"{cache_path}/skull_detect_cache.png", frame)
     # Bash command to yolov5 detect.py for object detection in frame
-    print(f"\nProcessing frame: {timestamp}")
+    logger.info(f"\nProcessing: {timestamp}")
     subprocess.check_call([
         "python", f"{yolov5_path}/detect.py",
         "--weights", f"{yolov5_path}/weights/last_yolov5s_results.pt",
-        "--img", config.get("YOLO", "image_num"),
-        "--conf", config.get("SKULL", "confidence"),
+        "--img", image_num,
+        "--conf", confidence,
         "--source", cache_path,
         "--save-txt",
         "--out", result_path])
@@ -105,11 +115,7 @@ def label_frame(frame, timestamp, boxes):
 
 def display_sampled_frame(frame, timestamp, skull_coords):
     cv2.imshow("Frame", label_frame(frame, timestamp, skull_coords))
-    key = cv2.waitKey(1) & 0xFF
-    if key == ord("q"):
-        return True
-    else:
-        return False
+    cv2.waitKey(1000)
 
 
 def calculate_skip_rate(vid, ms_skip_rate):
@@ -117,15 +123,14 @@ def calculate_skip_rate(vid, ms_skip_rate):
 
 
 # returns relevant frames and data (coordinates)
-def process_stream(video_path, display):
+def process_stream(video_path, azure_key, confidence, model_version, sample_rate=1000, display=False):
+    logger.info(f'Processing {os.path.basename(video_path)} with these settings: Sample rate={sample_rate}ms; Confidence={confidence}; Model Version={model_version}')
     vid_cap = cv2.VideoCapture(video_path)
     # initialize output list
     extracted_frames = []
     # processing parameters
-    config = configparser.ConfigParser()
-    config.read('strings.ini')
     episode_number = get_episode_number(video_path)
-    frame_skip_rate = calculate_skip_rate(vid_cap, int(config.get("SKULL", "sample_rate")))
+    frame_skip_rate = calculate_skip_rate(vid_cap, sample_rate)
     while vid_cap.isOpened():
         success, frame = vid_cap.read()
         if not success:
@@ -138,10 +143,10 @@ def process_stream(video_path, display):
             continue
 
         # Time stamping
-        timestamp = milli_to_timestamp(millisecond)
+        timestamp = Timestamp.from_milliseconds(millisecond)
 
         # Determine skull coordinates
-        retval = detect_skull(frame, config)
+        retval = detect_skull(frame, azure_key, confidence, model_version)
         skull_coords = []
         if retval:
             resize_factor, skull_coords_resized = retval
@@ -151,11 +156,12 @@ def process_stream(video_path, display):
                 bottom = int(bottom * resize_factor[0])
                 left = int(left * resize_factor[1])
                 skull_coords.append((top, right, bottom, left))
-            extracted_frames.append(ExtractedFrame(episode_number, frame, frame_number, timestamp, skull_coords))
-        logger.info('sampled_frame: {} | timestamp: {} | skulls detected: {}'.format(frame_number, timestamp, skull_coords))
+            if len(skull_coords) > 0:
+                extracted_frames.append(ExtractedFrame(episode_number, frame, frame_number, timestamp, skull_coords))
+        logger.info('[{}] skulls detected: {}'.format(timestamp, skull_coords))
 
         # Display squares on sampled frames where skulls are located
-        if display == 1:
+        if display:
             display_sampled_frame(frame, timestamp, skull_coords)
 
     cv2.destroyAllWindows()
@@ -163,15 +169,14 @@ def process_stream(video_path, display):
 
 
 if __name__ == "__main__":
+    import argparse
     # Initializing arguments
     ap = argparse.ArgumentParser()
     ap.add_argument("-i", "--input", required=True, type=str, help="path to unprocessed episode file")
-    ap.add_argument("-y", "--display", type=int, default=1, help="whether or not to display output frame to screen")
-    # ap.add_argument("-d", "--detection_method", type=str, default="cnn",
-    #                 help="skull detection model to use: either 'hog'/'cnn'")
-    # ap.add_argument("-s", "--sample_period", type=int, default=1300,
-    #                 help="milliseconds between each sampled frame, default: 100")
+    ap.add_argument("-y", "--display", type=bool, default=True, help="whether or not to display output frame to screen")
+    ap.add_argument("-m", "--model_version", type=str)
+    ap.add_argument("-c", "--confidence", type=float)
     args = vars(ap.parse_args())
 
     logger.info('video processing [{}] starts..'.format(args["input"]))
-    process_stream(args['input'], args["display"])
+    process_stream(args['input'], args["display"], args['confidence'], args['model_version'])
