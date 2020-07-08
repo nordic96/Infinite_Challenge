@@ -141,7 +141,6 @@ def recognise_faces(fc, img_dir_path, person_group_id, unknown_faces_dir, label_
         person_detected_arr = []
         person_coord_arr = []
         for person in results:
-            logger.info(person)
             try:
                 detected_name = get_name_by_id(fc, person.candidates[0].person_id, person_group_id)
                 logger.info('{} is identified in {} {}, with a confidence of {}'.format(
