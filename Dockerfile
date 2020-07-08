@@ -36,3 +36,7 @@ RUN cd ~ && \
     python3 setup.py install --yes USE_AVX_INSTRUCTIONS
 COPY requirements.txt /src/requirements.txt
 RUN pip3 install -r /src/requirements.txt
+COPY . /src/
+WORKDIR /src
+RUN ["chmod", "+x", "/src/docker_entrypoint.sh"]
+ENTRYPOINT ["/src/docker_entrypoint.sh"]
