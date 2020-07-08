@@ -96,7 +96,6 @@ def recognise_faces(fc, img_dir_path, person_group_id, unknown_faces_dir, label_
     """
     logger.info(f'Preparing images in {img_dir_path} ...')
     test_image_array = [file for file in glob.glob('{}/*.*'.format(img_dir_path))]
-    logger.debug(f'test_image_array: {test_image_array}')
     no_files = len(test_image_array)
     no_skips = 0
     no_fails = 0
@@ -126,14 +125,14 @@ def recognise_faces(fc, img_dir_path, person_group_id, unknown_faces_dir, label_
                 # logger.info('Face ID: {}, coordinates: {}'.format(face.face_id, getRectangle(face)))
             # Identify faces
             logger.info('Identifying faces using Azure Face Client...')
-            results = fc.face.identify(face_ids, person_group_id)
+            results = fc.face.identify(face_ids, person_group_id=person_group_id)
             if results is None:
                 logger.info('No faces were identified in {}.'.format(basename))
                 continue
         except BaseException as ex:
             logger.warning(f'Error occurred while processing {basename}: {ex.__class__.__name__}')
             no_fails += 1
-            continue
+            raise ex
 
         if label_and_save:
             labelled_image = Image.open(image_path)
@@ -142,13 +141,18 @@ def recognise_faces(fc, img_dir_path, person_group_id, unknown_faces_dir, label_
         person_detected_arr = []
         person_coord_arr = []
         for person in results:
-            detected_name = get_name_by_id(fc, person.candidates[0].person_id, person_group_id)
-            logger.info('{} is identified in {} {}, with a confidence of {}'.format(
-                detected_name,
-                basename,
-                faces_coord_dict[person.face_id],
-                person.candidates[0].confidence,
-            ))
+            logger.info(person)
+            try:
+                detected_name = get_name_by_id(fc, person.candidates[0].person_id, person_group_id)
+                logger.info('{} is identified in {} {}, with a confidence of {}'.format(
+                    detected_name,
+                    basename,
+                    faces_coord_dict[person.face_id],
+                    person.candidates[0].confidence,
+                ))
+            except IndexError:
+                detected_name = 'unknown'
+                logger.warning('Unable to identify a face [face_id = {}] which was detected in {}: No candidates found.'.format(person.face_id, basename))
 
             person_detected_arr.append(detected_name)
             person_coord_arr.append(faces_coord_dict[person.face_id])
