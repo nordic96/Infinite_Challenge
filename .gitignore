@@ -5,3 +5,6 @@ dataset/known_faces/*
 dataset/unknown_faces/*
 venv/
 temp/
+env.list
+.dockerignore
+.gitignore

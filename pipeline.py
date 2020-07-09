@@ -70,8 +70,8 @@ def phase1(episode_num, bucket, output_directory, result_logger, sample_rate, az
         episode_filename = f'episode{episode_num}.mp4'
         logger.info(f'Retrieving {bucket}/{episode_filename} from AWS S3')
         logger.critical('Skipping s3 retrieval for testing purposes')
-        #cached_episode = phase1_cache_episode_from_s3(bucket, episode_filename)
-        #video_path = cached_episode.name
+        # cached_episode = phase1_cache_episode_from_s3(bucket, episode_filename)
+        # video_path = cached_episode.name
         video_path = f'resources/sample_episodes/'+episode_filename
         # process episode
         logger.info('Processing video')

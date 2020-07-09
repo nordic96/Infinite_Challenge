@@ -1,3 +1,3 @@
 #!/bin/bash
 
-python3 -u /pipeline.py
+python3 -u /src/pipeline.py

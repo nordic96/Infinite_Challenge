@@ -25,13 +25,14 @@ class Timestamp:
 
     def __init__(self, h, m, s, ms, delimiter=DEFAULT_DELIMITER):
         self.delimiter = delimiter
-        self.h = h
-        self.m = m
-        self.s = s
-        self.ms = ms
+        self.h = int(h)
+        self.m = int(m)
+        self.s = int(s)
+        self.ms = int(ms)
 
     @staticmethod
     def from_milliseconds(ms, delimiter=DEFAULT_DELIMITER):
+        ms = int(ms)
         h, ms = divmod(ms, 60 * 60 * 1000)
         m, ms = divmod(ms, 60 * 1000)
         s, ms = divmod(ms, 1000)
