@@ -132,7 +132,7 @@ def recognise_faces(fc, img_dir_path, person_group_id, unknown_faces_dir, label_
         except BaseException as ex:
             logger.warning(f'Error occurred while processing {basename}: {ex.__class__.__name__}')
             no_fails += 1
-            raise ex
+            continue
 
         if label_and_save:
             labelled_image = Image.open(image_path)
