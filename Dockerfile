@@ -15,9 +15,9 @@ RUN apt-get -y update && \
     msodbcsql17 \
     pkg-config \
     python3-numpy \
-    unixodbc-dev \
-COPY requirements.txt /src/requirements.txt
-RUN pip3 install -r /src/requirements.txt
+    unixodbc-dev
+COPY requirements.txt /requirements.txt
+RUN pip3 install -r /requirements.txt
 COPY . /src/
 WORKDIR /src
 RUN ["chmod", "+x", "/src/docker_entrypoint.sh"]
