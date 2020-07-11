@@ -13,7 +13,7 @@ import traceback
 import datetime
 
 Timestamp = vr.Timestamp
-JOB_INDEX = 'IC_JOB_INDEX'
+JOB_INDEX = 'AWS_BATCH_JOB_ARRAY_INDEX'
 JOB_INDEX_OFFSET = 'IC_INDEX_OFFSET'
 AWS_RDS_PASSWORD = 'IC_RDS_PASSWORD'
 AZURE_KEY_SKULL = 'IC_AZURE_KEY_SKULL'
@@ -29,10 +29,10 @@ AZURE_KEY_FACE = 'IC_AZURE_KEY_FACE'
 # Assign an IAM Role with permission to GetObject from S3, boto3 will get
 # credentials from instance metadata
 # https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html
-def phase1_s3_download(bucket_name, filename):
+def phase1_s3_download(region_name, bucket_name, filename):
     #adapted from
     #https://www.thetechnologyupdates.com/image-processing-opencv-with-aws-lambda/
-    s3 = boto3.client('s3')
+    s3 = boto3.client('s3', region_name=region_name)
     logger.info(f'Downloading: [{bucket_name}/{filename}]')
     try:
         file_obj = s3.get_object(Bucket=bucket_name, Key=filename)
@@ -44,8 +44,8 @@ def phase1_s3_download(bucket_name, filename):
         raise ex
 
 
-def phase1_cache_episode_from_s3(bucket_name, episode_name):
-    video = phase1_s3_download(bucket_name, episode_name)
+def phase1_cache_episode_from_s3(region, bucket_name, episode_name):
+    video = phase1_s3_download(region, bucket_name, episode_name)
     dir = TemporaryDirectory()
     path = os.path.join(dir.name, episode_name)
     file = open(path, 'rb')
@@ -64,15 +64,13 @@ def save_extracted_frame(directory, frame):
 # 1. process a single video using model
 # 2. cache images with skulls
 # 3. update result.csv for each image
-def phase1(episode_num, bucket, output_directory, result_logger, sample_rate, azure_key, confidence, model_version, display):
+def phase1(episode_num, region, bucket, output_directory, result_logger, sample_rate, azure_key, confidence, model_version, display):
     try:
         # get episode from S3
         episode_filename = f'episode{episode_num}.mp4'
         logger.info(f'Retrieving {bucket}/{episode_filename} from AWS S3')
-        logger.critical('Skipping s3 retrieval for testing purposes')
-        # cached_episode = phase1_cache_episode_from_s3(bucket, episode_filename)
-        # video_path = cached_episode.name
-        video_path = f'resources/sample_episodes/'+episode_filename
+        cached_episode = phase1_cache_episode_from_s3(region, bucket, episode_filename)
+        video_path = cached_episode.name
         # process episode
         logger.info('Processing video')
         extracted_frames = vr.process_stream(
@@ -152,11 +150,15 @@ def main():
             config.read('strings.ini')
             # pipeline parameters
             db_password = os.environ[AWS_RDS_PASSWORD]
-            job_idx = int(os.environ[JOB_INDEX])
+            try:
+                job_idx = int(os.environ[JOB_INDEX])
+            except KeyError:
+                job_idx = 0
             job_idx_offset = int(os.environ[JOB_INDEX_OFFSET])
             episode = job_idx + job_idx_offset
             display = config.getboolean('PIPELINE', 'display')
-            s3_bucket_name = config.get('PIPELINE', 'episode_bucket_name')
+            s3_bucket_name = os.environ['IC_BUCKET_NAME']
+            s3_bucket_region = os.environ['IC_BUCKET_REGION']
             image_directory = config.get('PIPELINE', 'local_image_directory')
             save_cached = config.getboolean('PIPELINE', 'save_if_cached')
             save_cached_path = config.get('PIPELINE', 'save_cached_path')
@@ -236,6 +238,7 @@ def main():
         logger.info('Starting pipeline phase 1: extract frames with skulls...')
         phase1(
             episode_num=episode,
+            region=s3_bucket_region,
             bucket=s3_bucket_name,
             output_directory=image_directory,
             result_logger=result_logger,
