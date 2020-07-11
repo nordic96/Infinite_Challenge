@@ -1,9 +1,9 @@
 from csv import DictReader, DictWriter, reader
+from math import sqrt
 from shutil import move
 from tempfile import NamedTemporaryFile
 from logger.base_logger import logger
 from re import findall
-from scipy.spatial.distance import euclidean as distance
 
 
 FIELDNAME_EP = 'episode_no'  # should match database
@@ -18,6 +18,12 @@ FIELDNAME_BURNED_MEMBER = 'member'  # should match database
 # Last Modified: 6 Jul 2020
 # Brian Fung
 
+
+def distance(pt1, pt2):
+    (x1,y1), (x2,y2) = pt1, pt2
+    x = (x1 + x2) / 2.0
+    y = (y1 + y2) / 2.0
+    return sqrt(pow(x,2) + pow(y,2))
 
 def _has_valid_header_util(fieldnames, filepath):
     try:
