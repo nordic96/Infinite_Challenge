@@ -7,7 +7,7 @@ from re import findall
 
 
 FIELDNAME_EP = 'episode_no'  # should match database
-FIELDNAME_TIME = 'ep_time'  # should match database
+FIELDNAME_TIME = 'time_appeared'  # should match database
 FIELDNAME_SC_LIST = 'list_skull_coords'
 FIELDNAME_FC_LIST = 'list_face_coords'
 FIELDNAME_NAME_LIST = 'list_names'
