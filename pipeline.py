@@ -68,7 +68,7 @@ def phase1(episode_num, region, bucket, output_directory, result_logger, sample_
     try:
         # get episode from S3
         episode_filename = f'episode{episode_num}.mp4'
-        logger.info(f'Retrieving {bucket}/{episode_filename} from AWS S3')
+        logger.info(f'Retrieving {bucket}/{episode_filename} from AWS S3({region})')
         cached_episode = phase1_cache_episode_from_s3(region, bucket, episode_filename)
         video_path = cached_episode.name
         # process episode
