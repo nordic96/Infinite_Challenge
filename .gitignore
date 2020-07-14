@@ -8,3 +8,4 @@ temp/
 env.list
 .dockerignore
 .gitignore
+env.txt
