@@ -60,7 +60,9 @@ class SqlConnector:
             query_template = 'INSERT INTO {} {} VALUES {}'.format(table_name, column_str, wildcard_str)
             logger.debug(f'executemany query template: \'{query_template}\'')
             # Performing Bulk Insert into RDS
+            logger.debug(df)
             self.cursor.executemany(query_template, df)
+            self.cursor.commit()
             logger.info('Insert success.')
         except pyodbc.Error as ex:
             logger.error(ex)
