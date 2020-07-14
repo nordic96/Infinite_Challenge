@@ -7,7 +7,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
 # If modifying these scopes, delete the file token.pickle.
-from googleapiclient.http import MediaIoBaseDownload
+from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 
@@ -76,6 +76,40 @@ def download_file(drive_service, file_name, path_to_download):
     except Exception as ex:
         print(ex)
 
+def upload_file(file_name, drive_service, folder_name, file_path, file_mime_type):
+    # Search for folder id in Drive
+    page_token = None
+    folders = []
+    while True:
+        response = drive_service.files().list(
+            q=f"mimeType='application/vnd.google-apps.folder' and name='{folder_name}'",
+            spaces='drive',
+            fields='nextPageToken, files(id, name)',
+            pageToken=page_token).execute()
+        for folder in response.get('files', []):
+            folders.append(folder)
+        page_token = response.get('nextPageToken', None)
+        if page_token is None:
+            break
+    if not len(folders):
+        raise Exception('Specified Google Drive folder not found')
+    if len(folders) > 1:
+        raise Exception('Exists duplicate folders with the given name')
+    folder_id = ''
+    for folder in folders:
+        folder_id = folder.get('id')
+    # Upload file to designated folder
+    file_metadata = {
+        'name': [file_name],
+        'parents': [folder_id]
+    }
+    media = MediaFileUpload(file_path,
+                            mimetype=file_mime_type,
+                            resumable=True)
+    file = drive_service.files().create(body=file_metadata,
+                                        media_body=media,
+                                        fields='id').execute()
+    print(f"Successfully uploaded file {file_name} to {folder_name}.")
 
 def main():
     service = authenticate()
