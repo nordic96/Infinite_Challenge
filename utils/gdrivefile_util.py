@@ -1,23 +1,54 @@
-from __future__ import print_function
 import pickle
+import io
 import os.path
+# from logger.base_logger import logger
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
 # If modifying these scopes, delete the file token.pickle.
-SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly']
+from googleapiclient.http import MediaIoBaseDownload
 
-def download_file():
-    file_id = '0BwwA4oUTeiV1UVNwOHItT0xfa2M'
+SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+
+
+def search_file_by_name(drive_service, file_name):
+    print('searching file name {} in gdrive...'.format(file_name))
+    page_token = None
+    results = {}
+    try:
+        while True:
+            response = drive_service.files().list(q="name='{}'".format(file_name),
+                                                  spaces='drive',
+                                                  fields='nextPageToken, files(id, name)',
+                                                  pageToken=page_token).execute()
+            results = response.get('files', [])
+            for file in results:
+                # Process change
+                print('Found file: %s (%s)' % (file.get('name'), file.get('id')))
+            page_token = response.get('nextPageToken', None)
+            if page_token is None:
+                break
+    except Exception as ex:
+        print(ex)
+    print(results)
+    return results
+
+
+def download_file(drive_service, file_name, path_to_download):
+    file_id = search_file_by_name(drive_service, file_name)[0]['id']
     request = drive_service.files().get_media(fileId=file_id)
-    fh = io.BytesIO()
+    fh = io.FileIO(path_to_download, 'wb')
     downloader = MediaIoBaseDownload(fh, request)
     done = False
-    while done is False:
-        status, done = downloader.next_chunk()
-        print
-        "Download %d%%." % int(status.progress() * 100)
+    
+    try:
+        while done is False:
+            status, done = downloader.next_chunk()
+            print("Download %d%%." % int(status.progress() * 100))
+    except Exception as ex:
+        print(ex)
+
 
 def main():
     """Shows basic usage of the Drive v3 API.
@@ -55,6 +86,12 @@ def main():
         print('Files:')
         for item in items:
             print(u'{0} ({1})'.format(item['name'], item['id']))
+
+    path = os.path.join('resources', 'sample_episodes')
+
+    file_name = 'ENV_GDRIVE_TEST.txt'
+    path = os.path.join(path, file_name)
+    download_file(service, 'ENV_GDRIVE_TEST.txt', path)
 
 
 if __name__ == '__main__':
