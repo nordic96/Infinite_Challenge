@@ -87,10 +87,10 @@ def getRectangle(face_dictionary):
     right = left + rect.width
     bottom = top + rect.height
 
-    return (left, top), (right, bottom)
+    return (top, right, bottom, left)
 
 
-def recognise_faces(fc, img_dir_path, person_group_id, unknown_faces_dir, label_and_save=False):
+def recognise_faces(fc, img_dir_path, person_group_id, out_dir_path, label_and_save=False):
     """
     Identify a face against a defined PersonGroup
     """
@@ -102,6 +102,8 @@ def recognise_faces(fc, img_dir_path, person_group_id, unknown_faces_dir, label_
     result_dict = {}
 
     for image_path in test_image_array:
+        if not image_path.endswith('.jpg'):
+            continue
         basename = os.path.basename(image_path)
         logger.info(f'Processing {image_path}...')
         faces_coord_dict = {}
@@ -157,8 +159,9 @@ def recognise_faces(fc, img_dir_path, person_group_id, unknown_faces_dir, label_
             person_coord_arr.append(faces_coord_dict[person.face_id])
 
             if label_and_save:
-                draw.rectangle(faces_coord_dict[person.face_id], outline='red')
-                labelled_image.save(os.path.join(unknown_faces_dir, '{}_output.png'.format(detected_name)))
+                t, r, b, l = faces_coord_dict[person.face_id]
+                draw.rectangle((l, t), (r, b), outline='red')
+                labelled_image.save(os.path.join(out_dir_path, '{}_output.png'.format(detected_name)))
 
         result_dict[os.path.basename(basename)] = (person_detected_arr, person_coord_arr)
 
@@ -173,7 +176,7 @@ if __name__ == '__main__':
     # config.read('strings.ini')
     # person_group_id = config['FACE']['person_group_id']
     # endpoint = config['FACE']['endpoint']
-    # unknown_faces_dir = config['FACE']['unknown_faces_dir']
+    # out_dir_path = config['FACE']['out_dir_path']
     # known_faces_dir = config['FACE']['known_faces_dir']
     # key = os.environ['IC_AZURE_KEY_FACE']
     #
@@ -190,7 +193,7 @@ if __name__ == '__main__':
     # # path of directory containing images to use the model on
     # test_image_path_dir = ""
     #
-    # results = recognise_faces(face_client, person_group_id, test_image_path_dir, unknown_faces_dir)
+    # results = recognise_faces(face_client, person_group_id, test_image_path_dir, out_dir_path)
     # logger.info(results)
     exit(0)
 

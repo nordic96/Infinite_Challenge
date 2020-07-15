@@ -1,23 +1,18 @@
 import os
-import cv2
+import model.azure_face_recognition as afr
+from model.vid_recognition import Timestamp
 from logger.result_logger import ResultLogger
 from tempfile import TemporaryDirectory, NamedTemporaryFile
 from logger.base_logger import logger
-from model import vid_recognition as vr
 from utils.gdrivefile_util import GDrive
 
 
-# 1. process a single video using model
-# 2. cache images with skulls
-# 3. update result.csv for each image
-class Phase1:
+class Phase2:
     def __init__(self, config):
-        logger.info('initializing phase1 parameters')
+        logger.info('initializing phase2 parameters')
         self.config = config
-
         try:
-            self.config['episode_number'] = os.environ['IC_EPISODE_NUMBER']
-            self.config['azure_key'] = os.environ['IC_AZURE_KEY_SKULL']
+            self.config['azure_key'] = os.environ['IC_AZURE_KEY_FACE']
             self.config['token_path'] = os.environ['IC_GDRIVE_AUTH_TOKEN_PATH']
             self.config['client_secrets_path'] = os.environ['IC_GDRIVE_CLIENT_SECRETS_PATH']
         except KeyError as ex:
@@ -46,56 +41,42 @@ class Phase1:
         self.gdrive = GDrive(token_path=self.config['token_path'],
                              client_secrets_path=self.config['client_secrets_path'])
 
-    def download_episode(self):
-        config = self.config
-        episode_filename = f'episode{config["episode_number"]}.mp4'
-        cached_video_path = os.path.join(config["output_directory_path"], episode_filename)
-        self.gdrive.download_file(episode_filename, cached_video_path)
-        return cached_video_path
-
-    def process_episode(self, episode_filepath):
-        config = self.config
-        extracted_frames = vr.process_stream(
-            video_path=episode_filepath,
-            azure_key=config['azure_key'],
-            confidence=float(config['skull_confidence_threshold']),
-            model_version=config['skull_model_version'],
-            sample_rate=int(config['video_sample_rate']),
-            display=config['display'] == 'True'
-        )
-        return extracted_frames
-
-    def save_extracted_frames(self, extracted_frames):
-        config = self.config
-        for frame in extracted_frames:
-            filename = f"{config['episode_number']}_{frame.timestamp.with_delimiter('_')}.jpg"
-            dst_path = os.path.join(config['output_directory_path'], filename)
-            cv2.imwrite(dst_path, frame.frame)
-
-    def update_results(self, extracted_frames):
-        for frame in extracted_frames:
-            self.result_logger.add_skull_entry(self.config['episode_number'], frame.timestamp, frame.coord)
-
     def upload_output_files(self, upload_images=True):
         dir_path = self.config['output_directory_path']
         for file in os.listdir(dir_path):
             if file.endswith('mp4') or (file.endswith('.jpg') and upload_images is False):
                 continue
             self.gdrive.upload_file(os.path.join(dir_path, file), folder_name="Test")
-        self.gdrive.upload_file(self.config['result_file_path'], folder_name="Test", file_name='phase1_results.csv')
+        self.gdrive.upload_file(self.config['result_file_path'], folder_name="Test", file_name='phase2_results.csv')
+
+    def process_images(self):
+        fc = afr.authenticate_client(self.config['endpoint'], self.config['azure_key'])
+        mappings = afr.recognise_faces(fc,
+                                       self.config['input_directory_path'],
+                                       self.config['person_group_id'],
+                                       self.config['output_directory_path'],
+                                       label_and_save=self.config['label_and_save'] == 'True')
+        return mappings
+
+    def update_results(self, mappings):
+        for filename in mappings:
+            names, faces = mappings[filename]
+            entry_id = filename.split('.')[0]
+            ep, h, m, s, ms = entry_id.split('_')
+            self.result_logger.update_face_entry(
+                ep,
+                Timestamp(h, m, s, ms),
+                faces,
+                names
+            )
 
     def run(self):
         try:
-            # get episode from google drive
-            episode_filepath = self.download_episode()
-            # process episode
-            extracted_frames = self.process_episode(episode_filepath)
-            # update results and cache image locally on container
-            self.save_extracted_frames(extracted_frames)
-            self.update_results(extracted_frames)
+            filename_to_names_and_faces_mappings = self.process_images()
+            self.update_results(filename_to_names_and_faces_mappings)
             self.upload_output_files(upload_images=False)
         except Exception as ex:
-            logger.error('Phase 1 failed')
+            logger.error('Phase 2 failed')
             raise ex
 
 
@@ -103,5 +84,5 @@ if __name__ == '__main__':
     import configparser
     config = configparser.ConfigParser()
     config.read('../strings.ini')
-    p1 = Phase1(config['Phase1'])
+    p1 = Phase2(config['Phase2'])
     p1.run()

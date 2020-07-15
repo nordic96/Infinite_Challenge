@@ -12,7 +12,8 @@ from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = [
     'https://www.googleapis.com/auth/drive.file',
-    'https://www.googleapis.com/auth/drive.metadata'
+    'https://www.googleapis.com/auth/drive.metadata',
+    'https://www.googleapis.com/auth/drive.readonly'
 ]
 
 
