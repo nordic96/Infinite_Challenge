@@ -71,6 +71,9 @@ class Phase1:
             filename = f"{config['episode_number']}_{frame.timestamp.with_delimiter('_')}.jpg"
             dst_path = os.path.join(config['output_directory_path'], filename)
             cv2.imwrite(dst_path, frame.frame)
+            lfilename = f"{config['episode_number']}_{frame.timestamp.with_delimiter('_')}_labelled.jpg"
+            dst_path = os.path.join(config['output_directory_path'], lfilename)
+            cv2.imwrite(dst_path, frame.labelled_frame)
 
     def update_results(self, extracted_frames):
         for frame in extracted_frames:
@@ -79,9 +82,8 @@ class Phase1:
     def upload_output_files(self, upload_images=True):
         dir_path = self.config['output_directory_path']
         for file in os.listdir(dir_path):
-            if file.endswith('mp4') or (file.endswith('.jpg') and upload_images is False):
-                continue
-            self.gdrive.upload_file(os.path.join(dir_path, file), folder_name="Test")
+            if (file.endswith('labelled.jpg') and upload_images):
+                self.gdrive.upload_file(os.path.join(dir_path, file), folder_name="Test")
         self.gdrive.upload_file(self.config['result_file_path'],
                                 folder_name="Test",
                                 file_name=f'ep{self.config["episode_number"]}_phase1_results.csv')

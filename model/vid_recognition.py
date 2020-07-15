@@ -11,8 +11,9 @@ from logger.base_logger import logger
 
 
 class ExtractedFrame:
-    def __init__(self, frame, frame_number, timestamp, coord):
+    def __init__(self, frame, labelled_frame, frame_number, timestamp, coord):
         self.frame = frame
+        self.labelled_frame = labelled_frame
         self.frame_number = frame_number
         self.timestamp = timestamp
         self.coord = coord
@@ -98,7 +99,7 @@ def label_frame(frame, timestamp, boxes):
         y = top - 15 if top - 15 > 15 else top + 15
         cv2.putText(labelled, "skull", (left, y), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
 
-    cv2.putText(labelled, timestamp, (5, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
+    cv2.putText(labelled, str(timestamp), (5, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
     return labelled
 
 
@@ -145,7 +146,7 @@ def process_stream(video_path, azure_key, confidence, model_version, sample_rate
                 left = int(left * resize_factor[1])
                 skull_coords.append((top, right, bottom, left))
             if len(skull_coords) > 0:
-                extracted_frames.append(ExtractedFrame(frame, frame_number, timestamp, skull_coords))
+                extracted_frames.append(ExtractedFrame(frame, label_frame(frame, timestamp, skull_coords), frame_number, timestamp, skull_coords))
         logger.info('[{}] skulls detected: {}'.format(timestamp, skull_coords))
 
         # Display squares on sampled frames where skulls are located
