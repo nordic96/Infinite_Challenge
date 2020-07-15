@@ -82,7 +82,9 @@ class Phase1:
             if file.endswith('mp4') or (file.endswith('.jpg') and upload_images is False):
                 continue
             self.gdrive.upload_file(os.path.join(dir_path, file), folder_name="Test")
-        self.gdrive.upload_file(self.config['result_file_path'], folder_name="Test", file_name='phase1_results.csv')
+        self.gdrive.upload_file(self.config['result_file_path'],
+                                folder_name="Test",
+                                file_name=f'ep{self.config["episode_number"]}_phase1_results.csv')
 
     def run(self):
         try:
@@ -93,7 +95,7 @@ class Phase1:
             # update results and cache image locally on container
             self.save_extracted_frames(extracted_frames)
             self.update_results(extracted_frames)
-            self.upload_output_files(upload_images=False)
+            self.upload_output_files(upload_images=self.config['upload_images'] == 'True')
         except Exception as ex:
             logger.error('Phase 1 failed')
             raise ex

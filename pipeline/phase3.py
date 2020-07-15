@@ -11,6 +11,7 @@ class Phase2:
         logger.info('initializing phase3 parameters')
         self.config = config
         try:
+            self.config['episode_number'] = os.environ['IC_EPISODE_NUMBER']
             self.config['db_password'] = os.environ['IC_RDS_PASSWORD']
             self.config['token_path'] = os.environ['IC_GDRIVE_AUTH_TOKEN_PATH']
             self.config['client_secrets_path'] = os.environ['IC_GDRIVE_CLIENT_SECRETS_PATH']
@@ -32,7 +33,9 @@ class Phase2:
                              client_secrets_path=self.config['client_secrets_path'])
 
     def upload_output_files(self):
-        self.gdrive.upload_file(self.config['result_file_path'], folder_name="Test", file_name='phase3_results.csv')
+        self.gdrive.upload_file(self.config['result_file_path'],
+                                folder_name="Test",
+                                file_name=f'ep{self.config["episode_number"]}_phase3_results.csv')
 
     def run(self):
         try:

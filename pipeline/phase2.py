@@ -12,6 +12,7 @@ class Phase2:
         logger.info('initializing phase2 parameters')
         self.config = config
         try:
+            self.config['episode_number'] = os.environ['IC_EPISODE_NUMBER']
             self.config['azure_key'] = os.environ['IC_AZURE_KEY_FACE']
             self.config['token_path'] = os.environ['IC_GDRIVE_AUTH_TOKEN_PATH']
             self.config['client_secrets_path'] = os.environ['IC_GDRIVE_CLIENT_SECRETS_PATH']
@@ -47,7 +48,9 @@ class Phase2:
             if file.endswith('mp4') or (file.endswith('.jpg') and upload_images is False):
                 continue
             self.gdrive.upload_file(os.path.join(dir_path, file), folder_name="Test")
-        self.gdrive.upload_file(self.config['result_file_path'], folder_name="Test", file_name='phase2_results.csv')
+        self.gdrive.upload_file(self.config['result_file_path'],
+                                folder_name="Test",
+                                file_name=f'ep{self.config["episode_number"]}_phase2_results.csv')
 
     def process_images(self):
         fc = afr.authenticate_client(self.config['endpoint'], self.config['azure_key'])
@@ -74,7 +77,7 @@ class Phase2:
         try:
             filename_to_names_and_faces_mappings = self.process_images()
             self.update_results(filename_to_names_and_faces_mappings)
-            self.upload_output_files(upload_images=False)
+            self.upload_output_files(upload_images=self.config['upload_images'] == 'True')
         except Exception as ex:
             logger.error('Phase 2 failed')
             raise ex
