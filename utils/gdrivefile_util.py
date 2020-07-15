@@ -1,103 +1,133 @@
-import pickle
-import io
 import os.path
-# from logger.base_logger import logger
+from pickle import dump as p_dump, load as p_load
+from io import FileIO
+from logger.base_logger import logger
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.credentials import Credentials
 from google.auth.transport.requests import Request
-
-# If modifying these scopes, delete the file token.pickle.
 from googleapiclient.http import MediaIoBaseDownload
 
+# If modifying these scopes, delete the file token.pickle.
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 
 
-def authenticate():
-    """Shows basic usage of the Drive v3 API.
-    Prints the names and ids of the first 10 files the user has access to.
-    """
-    creds = None
-    # The file token.pickle stores the user's access and refresh tokens, and is
-    # created automatically when the authorization flow completes for the first
-    # time.
-    if os.path.exists('token.pickle'):
-        with open('token.pickle', 'rb') as token:
-            creds = pickle.load(token)
-    # If there are no (valid) credentials available, let the user log in.
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                'credentials.json', SCOPES)
-            creds = flow.run_local_server(port=0)
+class AuthenticationError(Exception):
+    def __init__(self, *args):
+        super().__init__('Failed to authenticate Google Drive v3 credentials.', *args)
+
+
+class GDrive:
+
+    def __init__(self, credentials: Credentials = None, token_path=None, client_secrets_path=None):
+        self.credentials = credentials
+        self.token_path = token_path
+        self.client_secrets_path = client_secrets_path
+        self.drive = None
+        authentication_methods = [
+            self.authenticate_by_token,
+            self.authenticate_by_auth_flow
+        ]
+        attempt = 0
+        for authenticate in authentication_methods:
+            if self.credentials is None or not self.credentials.valid:
+                try:
+                    attempt += 1
+                    if authenticate():
+                        self.drive = build('drive', 'v3', credentials=self.credentials)
+                        break
+                except (FileNotFoundError, IsADirectoryError) as ex:
+                    if attempt == len(authentication_methods):
+                        raise AuthenticationError from ex
+
+    def authenticate_by_token(self):
+        """
+        Attempt to authenticate GDrive v3 API using saved token (if one exists)
+        """
+        logger.debug(f'Attempting to authenticate by token @ {self.token_path} ...')
+        # The file token.pickle stores the user's access and refresh tokens, and is created automatically when the
+        # authorization flow completes for the first time.
+        if os.path.isfile(self.token_path):
+            with open(self.token_path, 'rb') as token:
+                try:
+                    credentials = p_load(token)
+                    if credentials.expired and credentials.refresh_token:
+                        logger.debug('Refreshing expired credentials ...')
+                        credentials.refresh(Request())
+                    if credentials.valid:
+                        self.credentials = credentials
+                        return True
+                except AttributeError as ex:
+                    logger.debug(f'Unable to unserialize {self.token_path} as {Credentials.__class__.__qualname__}')
+                    raise ex
+        elif os.path.isdir(self.token_path):
+            raise IsADirectoryError(f'Serialized token file was expected \'{self.token_path}\' is a directory')
+        elif not os.path.exists(self.token_path):
+            raise FileNotFoundError(f'Serialized token file was expected. No such file: \'{self.token_path}\'')
+        return False
+
+    def authenticate_by_auth_flow(self):
+        """
+        Attempt to authenticate GDrive v3 API using authorization flow as specified in client secrets file
+        """
+        logger.debug(f'Attemping to authenticate by InstalledAppFlow @ {self.client_secrets_path} ...')
+        flow = InstalledAppFlow.from_client_secrets_file(self.client_secrets_path, SCOPES)
+        credentials = flow.run_local_server(port=0)
         # Save the credentials for the next run
-        with open('token.pickle', 'wb') as token:
-            pickle.dump(creds, token)
+        if credentials.valid:
+            with open(self.token_path, 'wb') as token:
+                p_dump(self.credentials, token)
+            self.credentials = credentials
+            return True
+        return False
 
-    service = build('drive', 'v3', credentials=creds)
-    return service
-
-
-def search_file_by_name(drive_service, file_name):
-    print('searching file name {} in gdrive...'.format(file_name))
-    page_token = None
-    results = {}
-    try:
+    def get_file_id(self, file_name):
+        logger.debug(f'searching for {file_name} in gdrive...')
+        page_token = None
         while True:
-            response = drive_service.files().list(q="name='{}'".format(file_name),
-                                                  spaces='drive',
-                                                  fields='nextPageToken, files(id, name)',
-                                                  pageToken=page_token).execute()
+            response = self.drive.files().list(q=f"name='{file_name}'",
+                                               spaces='drive',
+                                               fields='nextPageToken, files(id, name)',
+                                               pageToken=page_token).execute()
             results = response.get('files', [])
             for file in results:
-                # Process change
-                print('Found file: %s (%s)' % (file.get('name'), file.get('id')))
+                if file['name'] == file_name:
+                    return file['id']
             page_token = response.get('nextPageToken', None)
             if page_token is None:
-                break
-    except Exception as ex:
-        print(ex)
-    print(results)
-    return results
+                raise FileNotFoundError(file_name)
+            logger.debug(f'{file_name} not found, searching in next page...')
 
+    def list_files(self, page_size=10):
+        results = self.drive.files().list(
+            pageSize=page_size, fields="nextPageToken, files(id, name)").execute()
+        items = results.get('files', [])
+        if not items:
+            logger.info('No files found.')
+        else:
+            logger.info('Files:')
+            for item in items:
+                logger.info(u'{0} ({1})'.format(item['name'], item['id']))
 
-def download_file(drive_service, file_name, path_to_download):
-    file_id = search_file_by_name(drive_service, file_name)[0]['id']
-    request = drive_service.files().get_media(fileId=file_id)
-    fh = io.FileIO(path_to_download, 'wb')
-    downloader = MediaIoBaseDownload(fh, request)
-    done = False
-
-    try:
-        while done is False:
+    def download_file(self, file_name, output_path):
+        file_id = self.get_file_id(file_name)
+        request = self.drive.files().get_media(fileId=file_id)
+        fh = FileIO(output_path, 'wb')
+        downloader = MediaIoBaseDownload(fh, request)
+        done = False
+        while not done:
             status, done = downloader.next_chunk()
-            print("Download %d%%." % int(status.progress() * 100))
-    except Exception as ex:
-        print(ex)
-
-
-def main():
-    service = authenticate()
-
-    # Call the Drive v3 API
-    results = service.files().list(
-        pageSize=10, fields="nextPageToken, files(id, name)").execute()
-    items = results.get('files', [])
-
-    if not items:
-        print('No files found.')
-    else:
-        print('Files:')
-        for item in items:
-            print(u'{0} ({1})'.format(item['name'], item['id']))
-
-    path = os.path.join('resources', 'sample_episodes')
-
-    file_name = 'ENV_GDRIVE_TEST.txt'
-    path = os.path.join(path, file_name)
-    download_file(service, 'ENV_GDRIVE_TEST.txt', path)
+            if done:
+                logger.info(f'Downloading [{file_name}] completed.')
+            else:
+                logger.info(f"Downloading [{file_name}] {str(int(status.progress() * 100))}%")
 
 
 if __name__ == '__main__':
-    main()
+    drive = GDrive(token_path='../token.pickle', client_secrets_path='../credentials.json')
+
+    # Call the Drive v3 API
+    file_name = 'ENV_GDRIVE_TEST.txt'
+    path = os.path.join('..', 'resources', 'sample_episodes', file_name)
+    drive.list_files()
+    drive.download_file(file_name, path)

@@ -3,6 +3,7 @@ from model import azure_face_recognition as afr
 from logger.base_logger import logger
 from logger.result_logger import ResultLogger, FIELDNAME_BURNED_MEMBER, FIELDNAME_EP, FIELDNAME_TIME
 from utils.sql_connecter import SqlConnector
+from utils.gdrivefile_util import GDrive
 from tempfile import TemporaryDirectory
 from shutil import move
 import boto3
@@ -64,17 +65,17 @@ def save_extracted_frame(directory, frame):
 # 1. process a single video using model
 # 2. cache images with skulls
 # 3. update result.csv for each image
-def phase1(episode_num, region, bucket, output_directory, result_logger, sample_rate, azure_key, confidence, model_version, display):
+def phase1(episode_num, client_secrets_path, token_path, img_out_dir_path, result_logger, sample_rate, azure_key, confidence, model_version, display):
     try:
-        # get episode from S3
+        # get episode from google drive
         episode_filename = f'episode{episode_num}.mp4'
-        logger.info(f'Retrieving {bucket}/{episode_filename} from AWS S3({region})')
-        cached_episode = phase1_cache_episode_from_s3(region, bucket, episode_filename)
-        video_path = cached_episode.name
+        temp_dir = TemporaryDirectory()
+        cached_video_path = os.path.join(temp_dir.name, episode_filename)
+        GDrive(client_secrets_path=client_secrets_path, token_path=token_path).download_file(episode_filename, cached_video_path)
         # process episode
         logger.info('Processing video')
         extracted_frames = vr.process_stream(
-            video_path=video_path,
+            video_path=cached_video_path,
             azure_key=azure_key,
             confidence=confidence,
             model_version=model_version,
@@ -84,7 +85,7 @@ def phase1(episode_num, region, bucket, output_directory, result_logger, sample_
         # update results and cache image locally on container
         logger.info('Saving extracted frames')
         for frame in extracted_frames:
-            save_extracted_frame(output_directory, frame)
+            save_extracted_frame(img_out_dir_path, frame)
         logger.info('Updating results')
         for frame in extracted_frames:
             result_logger.add_skull_entry(episode_num, frame.timestamp, frame.coord)
@@ -157,8 +158,8 @@ def main():
             job_idx_offset = int(os.environ[JOB_INDEX_OFFSET])
             episode = job_idx + job_idx_offset
             display = config.getboolean('PIPELINE', 'display')
-            s3_bucket_name = os.environ['IC_BUCKET_NAME']
-            s3_bucket_region = os.environ['IC_BUCKET_REGION']
+            gdrive_client_secrets_path = os.environ['IC_GDRIVE_CLIENT_SECRETS_PATH']
+            gdrive_auth_token_path = os.environ['IC_GDRIVE_AUTH_TOKEN_PATH']
             image_directory = config.get('PIPELINE', 'local_image_directory')
             save_cached = config.getboolean('PIPELINE', 'save_if_cached')
             save_cached_path = config.get('PIPELINE', 'save_cached_path')
@@ -238,9 +239,9 @@ def main():
         logger.info('Starting pipeline phase 1: extract frames with skulls...')
         phase1(
             episode_num=episode,
-            region=s3_bucket_region,
-            bucket=s3_bucket_name,
-            output_directory=image_directory,
+            client_secrets_path=gdrive_client_secrets_path,
+            token_path=gdrive_auth_token_path,
+            img_out_dir_path=image_directory,
             result_logger=result_logger,
             sample_rate=sample_rate,
             azure_key=azure_key_skull,
