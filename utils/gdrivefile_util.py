@@ -6,10 +6,16 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.credentials import Credentials
 from google.auth.transport.requests import Request
-from googleapiclient.http import MediaIoBaseDownload
 
 # If modifying these scopes, delete the file token.pickle.
-SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
+
+
+# If modifying these scopes, delete the file token.pickle.
+SCOPES = [
+    'https://www.googleapis.com/auth/drive.file',
+    'https://www.googleapis.com/auth/drive.metadata'
+]
 
 
 class AuthenticationError(Exception):
@@ -122,6 +128,47 @@ class GDrive:
             else:
                 logger.info(f"Downloading [{file_name}] {str(int(status.progress() * 100))}%")
 
+    def get_folder_id(self, folder_name):
+        # Search for folder id in Drive
+        page_token = None
+        folders = []
+        while True:
+            response = self.drive.files().list(
+                q=f"mimeType='application/vnd.google-apps.folder' and name='{folder_name}'",
+                spaces='drive',
+                fields='nextPageToken, files(id, name)',
+                pageToken=page_token).execute()
+            for folder in response.get('files', []):
+                folders.append(folder)
+            page_token = response.get('nextPageToken', None)
+            if page_token is None:
+                break
+        if not len(folders):
+            logger.critical('Specified Google Drive folder not found')
+            raise FileNotFoundError(file_name)
+        if len(folders) > 1:
+            logger.critical('Exists duplicate folders with the given name')
+            raise FileNotFoundError(file_name)
+        folder_id = ''
+        for folder in folders:
+            folder_id = folder.get('id')
+        logger.info('Retrieved folder ID')
+        return folder_id
+
+    def upload_file(self, file_name, folder_name, file_path, file_mime_type):
+        folder_id = self.get_folder_id(folder_name)
+        # Upload file to designated folder
+        file_metadata = {
+            'name': [file_name],
+            'parents': [folder_id]
+        }
+        media = MediaFileUpload(file_path,
+                                mimetype=file_mime_type,
+                                resumable=True)
+        file = self.drive.files().create(body=file_metadata,
+                                            media_body=media,
+                                            fields='id').execute()
+        logger.info(f"File {file_name} is uploaded to {folder_name}.")
 
 if __name__ == '__main__':
     drive = GDrive(token_path='../token.pickle', client_secrets_path='../credentials.json')
