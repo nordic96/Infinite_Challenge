@@ -1,4 +1,5 @@
 import os.path
+from mimetypes import guess_type
 from pickle import dump as p_dump, load as p_load
 from io import FileIO
 from logger.base_logger import logger
@@ -6,10 +7,7 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.credentials import Credentials
 from google.auth.transport.requests import Request
-
-# If modifying these scopes, delete the file token.pickle.
 from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
-
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = [
@@ -42,7 +40,7 @@ class GDrive:
                     if authenticate():
                         self.drive = build('drive', 'v3', credentials=self.credentials)
                         break
-                except (FileNotFoundError, IsADirectoryError) as ex:
+                except (AttributeError, FileNotFoundError, IsADirectoryError) as ex:
                     if attempt == len(authentication_methods):
                         raise AuthenticationError from ex
 
@@ -81,9 +79,9 @@ class GDrive:
         credentials = flow.run_local_server(port=0)
         # Save the credentials for the next run
         if credentials.valid:
+            self.credentials = credentials
             with open(self.token_path, 'wb') as token:
                 p_dump(self.credentials, token)
-            self.credentials = credentials
             return True
         return False
 
@@ -98,6 +96,7 @@ class GDrive:
             results = response.get('files', [])
             for file in results:
                 if file['name'] == file_name:
+                    logger.debug(f'{file_name}[{file["id"]}]')
                     return file['id']
             page_token = response.get('nextPageToken', None)
             if page_token is None:
@@ -106,14 +105,14 @@ class GDrive:
 
     def list_files(self, page_size=10):
         results = self.drive.files().list(
-            pageSize=page_size, fields="nextPageToken, files(id, name)").execute()
+            pageSize=page_size, fields="nextPageToken, files(id, name, mimeType)").execute()
         items = results.get('files', [])
         if not items:
             logger.info('No files found.')
         else:
             logger.info('Files:')
             for item in items:
-                logger.info(u'{0} ({1})'.format(item['name'], item['id']))
+                logger.info(u'{0} ({1} || {2})'.format(item['name'], item['mimeType'], item['id']))
 
     def download_file(self, file_name, output_path):
         file_id = self.get_file_id(file_name)
@@ -124,9 +123,9 @@ class GDrive:
         while not done:
             status, done = downloader.next_chunk()
             if done:
-                logger.info(f'Downloading [{file_name}] completed.')
+                logger.info(f'Downloading {file_name}[{file_id}] completed.')
             else:
-                logger.info(f"Downloading [{file_name}] {str(int(status.progress() * 100))}%")
+                logger.info(f"Downloading {file_name}[{file_id}] {str(int(status.progress() * 100))}%")
 
     def get_folder_id(self, folder_name):
         # Search for folder id in Drive
@@ -149,32 +148,37 @@ class GDrive:
         if len(folders) > 1:
             logger.critical('Exists duplicate folders with the given name')
             raise FileNotFoundError(file_name)
-        folder_id = ''
-        for folder in folders:
-            folder_id = folder.get('id')
-        logger.info('Retrieved folder ID')
-        return folder_id
 
-    def upload_file(self, file_name, folder_name, file_path, file_mime_type):
-        folder_id = self.get_folder_id(folder_name)
-        # Upload file to designated folder
-        file_metadata = {
-            'name': [file_name],
-            'parents': [folder_id]
-        }
-        media = MediaFileUpload(file_path,
-                                mimetype=file_mime_type,
-                                resumable=True)
+        for folder in folders:
+            logger.debug(f'{folder_name}[{folder["id"]}]')
+            return folder["id"]
+
+    def upload_file(self, file_path, folder_name=None, file_name=None):
+        if file_name is None:
+            file_name = os.path.basename(file_path)
+        file_metadata = {'name': [file_name]}
+
+        if folder_name:
+            folder_id = self.get_folder_id(folder_name)
+            # Upload file to designated folder
+            file_metadata['parents'] = [folder_id]
+        if folder_name is None:
+            folder_name = 'RootDirectory'
+
+        media = MediaFileUpload(file_path, mimetype=guess_type(file_path)[0])
         file = self.drive.files().create(body=file_metadata,
-                                            media_body=media,
-                                            fields='id').execute()
-        logger.info(f"File {file_name} is uploaded to {folder_name}.")
+                                         media_body=media,
+                                         fields='id, parents').execute()
+        logger.info(f"File {file_path} was uploaded to {folder_name}[{file['parents'][0]}] as {file_name}[{file['id']}]")
+
 
 if __name__ == '__main__':
-    drive = GDrive(token_path='../token.pickle', client_secrets_path='../credentials.json')
+    drive = GDrive(token_path='token.pickle', client_secrets_path='../credentials.json')
 
     # Call the Drive v3 API
     file_name = 'ENV_GDRIVE_TEST.txt'
-    path = os.path.join('..', 'resources', 'sample_episodes', file_name)
+    path = os.path.join('..','resources', 'sample_episodes', file_name)
     drive.list_files()
     drive.download_file(file_name, path)
+    drive.upload_file(path)
+    drive.upload_file(path, file_name='differentname.txt', folder_name='Test2')
