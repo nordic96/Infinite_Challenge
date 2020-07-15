@@ -1,7 +1,7 @@
 import os
 import cv2
 from logger.result_logger import ResultLogger
-from tempfile import TemporaryDirectory, NamedTemporaryFile
+from tempfile import TemporaryDirectory
 from logger.base_logger import logger
 from model import vid_recognition as vr
 from utils.gdrivefile_util import GDrive
@@ -68,10 +68,10 @@ class Phase1:
         for frame in extracted_frames:
             self.result_logger.add_skull_entry(self.config['episode_number'], frame.timestamp, frame.coord)
 
-    def upload_output_files(self):
+    def upload_output_files(self, upload_images=True):
         dir_path = self.config['output_directory_path']
         for file in os.listdir(dir_path):
-            if file == f'episode{self.config["episode_number"]}.mp4':
+            if file.endswith('mp4') or (file.endswith('.jpg') and upload_images is False):
                 continue
             self.gdrive.upload_file(os.path.join(dir_path, file), folder_name="Test")
 
@@ -84,7 +84,7 @@ class Phase1:
             # update results and cache image locally on container
             self.save_extracted_frames(extracted_frames)
             self.update_results(extracted_frames)
-            self.upload_output_files()
+            self.upload_output_files(upload_images=False)
         except Exception as ex:
             logger.error('Phase 1 failed')
             raise ex
