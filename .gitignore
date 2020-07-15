@@ -6,6 +6,7 @@ dataset/unknown_faces/*
 venv/
 temp/
 env.list
-.dockerignore
-.gitignore
 env.txt
+token.pickle
+credentials.json
+.dockerignore
