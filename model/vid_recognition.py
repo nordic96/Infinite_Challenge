@@ -1,6 +1,5 @@
 import subprocess
 import os
-import re
 import cv2
 import model.skull_detection as sd
 from logger.base_logger import logger
@@ -12,8 +11,7 @@ from logger.base_logger import logger
 
 
 class ExtractedFrame:
-    def __init__(self, episode_number, frame, frame_number, timestamp, coord):
-        self.episode_number = episode_number
+    def __init__(self, frame, frame_number, timestamp, coord):
         self.frame = frame
         self.frame_number = frame_number
         self.timestamp = timestamp
@@ -43,16 +41,6 @@ class Timestamp:
 
     def __str__(self):
         return "{}{delim}{:02d}{delim}{:02d}{delim}{:03d}".format(self.h, self.m, self.s, self.ms, delim=self.delimiter)
-
-
-def get_episode_number(filename):
-    # get base file name
-    episode_num = os.path.basename(filename)
-    # strip file extension
-    episode_num = episode_num.split('.')[0]
-    # strip non-digits
-    episode_num = re.sub('[^0-9]', '', episode_num)
-    return episode_num
 
 
 # Skull detection with Azure Cognitive Services
@@ -130,7 +118,6 @@ def process_stream(video_path, azure_key, confidence, model_version, sample_rate
     # initialize output list
     extracted_frames = []
     # processing parameters
-    episode_number = get_episode_number(video_path)
     frame_skip_rate = calculate_skip_rate(vid_cap, sample_rate)
     while vid_cap.isOpened():
         success, frame = vid_cap.read()
@@ -158,7 +145,7 @@ def process_stream(video_path, azure_key, confidence, model_version, sample_rate
                 left = int(left * resize_factor[1])
                 skull_coords.append((top, right, bottom, left))
             if len(skull_coords) > 0:
-                extracted_frames.append(ExtractedFrame(episode_number, frame, frame_number, timestamp, skull_coords))
+                extracted_frames.append(ExtractedFrame(frame, frame_number, timestamp, skull_coords))
         logger.info('[{}] skulls detected: {}'.format(timestamp, skull_coords))
 
         # Display squares on sampled frames where skulls are located

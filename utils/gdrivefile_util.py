@@ -12,7 +12,8 @@ from googleapiclient.http import MediaIoBaseDownload, MediaFileUpload
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = [
     'https://www.googleapis.com/auth/drive.file',
-    'https://www.googleapis.com/auth/drive.metadata'
+    'https://www.googleapis.com/auth/drive.metadata',
+    'https://www.googleapis.com/auth/drive.readonly'
 ]
 
 
@@ -168,8 +169,9 @@ class GDrive:
         media = MediaFileUpload(file_path, mimetype=guess_type(file_path)[0])
         file = self.drive.files().create(body=file_metadata,
                                          media_body=media,
-                                         fields='id, parents').execute()
-        logger.info(f"File {file_path} was uploaded to {folder_name}[{file['parents'][0]}] as {file_name}[{file['id']}]")
+                                         fields='id, name, parents').execute()
+        logger.info(f"File {file_path} was uploaded to {folder_name}[{file['parents'][0]}] as {file['name']}[{file['id']}]")
+        return file
 
 
 if __name__ == '__main__':
