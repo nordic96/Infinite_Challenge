@@ -2,7 +2,7 @@ import glob
 import os
 import sys
 import time
-from PIL import Image, ImageDraw
+import src.utils.labeller as labeller
 from azure.cognitiveservices.vision.face import FaceClient
 from msrest.authentication import CognitiveServicesCredentials
 from azure.cognitiveservices.vision.face.models import TrainingStatusType, Person, SnapshotObjectType, \
@@ -86,8 +86,8 @@ def getRectangle(face_dictionary):
     top = rect.top
     right = left + rect.width
     bottom = top + rect.height
-
     return (top, right, bottom, left)
+
 
 def recognise_faces(fc, image_path, person_group_id):
     """ Recognize faces in an image
@@ -135,19 +135,9 @@ def recognise_faces(fc, image_path, person_group_id):
 
 
 def label_image(faces, image_path, output_path):
-    img = Image.open(image_path)
-    draw = ImageDraw.Draw(img)
-    for face in faces:
-        t, r, b, l = face['bounding_box']
-        bounding_box = (l, t), (r, b)
-        # outline
-        draw.rectangle(bounding_box, outline='green')
-        # label (bottom-left, below outline)
-        w, h = draw.textsize(face['name'])
-        text_bounding_box = (l, b), (l+w, b+h)
-        draw.rectangle(text_bounding_box, fill='green')
-        draw.text((l, b), face['name'])
-    img.save(output_path)
+    label_list = [(face['name'], face['bounding_box'], 'green') for face in faces]
+    labeller.label_image(image_path, output_path, label_list)
+
 
 def recognise_faces_many(fc, img_dir_path, person_group_id, out_dir_path, label_and_save=False):
     """

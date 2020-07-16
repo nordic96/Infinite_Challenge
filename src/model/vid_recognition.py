@@ -1,7 +1,9 @@
 import subprocess
 import os
 import cv2
+import src.utils.labeller as labeller
 import src.model.skull_detection as sd
+from tempfile import NamedTemporaryFile
 from src.logger.base_logger import logger
 
 
@@ -92,15 +94,12 @@ def detect_skull_yolo(frame, timestamp, confidence, image_num, yolov5_path, cach
         return None
 
 
-def label_frame(frame, timestamp, boxes):
-    labelled = frame.copy()
-    for (top, right, bottom, left) in boxes:
-        cv2.rectangle(labelled, (left, top), (right, bottom), (0, 255, 0), 2)
-        y = top - 15 if top - 15 > 15 else top + 15
-        cv2.putText(labelled, "skull", (left, y), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
-
-    cv2.putText(labelled, str(timestamp), (5, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
-    return labelled
+def label_frame(frame, boxes):
+    label_list = [('skull', (top, left, bottom, right), 'blue') for (top, right, bottom, left) in boxes]
+    img_file = NamedTemporaryFile()
+    cv2.imwrite(img_file.name, frame)
+    labeller.label_image(img_file.name, img_file.name, label_list)
+    return cv2.imread(img_file.name)
 
 
 def display_sampled_frame(frame, timestamp, skull_coords):
@@ -146,7 +145,8 @@ def process_stream(video_path, azure_key, confidence, model_version, sample_rate
                 left = int(left * resize_factor[1])
                 skull_coords.append((top, right, bottom, left))
             if len(skull_coords) > 0:
-                extracted_frames.append(ExtractedFrame(frame, label_frame(frame, timestamp, skull_coords), frame_number, timestamp, skull_coords))
+                extracted_frames.append(ExtractedFrame(frame, label_frame(frame, skull_coords),
+                                                       frame_number, timestamp, skull_coords))
         logger.info('[{}] skulls detected: {}'.format(timestamp, skull_coords))
 
         # Display squares on sampled frames where skulls are located
