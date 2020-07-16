@@ -18,10 +18,10 @@ class Phase2:
         self.input_directory_path = os.path.join(config['input_directory_path'],  f'episode{episode_number}')
         # prepare directory for caching
         self.cache_dir = TemporaryDirectory()
-        self.result_cache = os.path.join(self.cache_dir.name, 'results.csv')
+        self.result_cache_path = os.path.join(self.cache_dir.name, 'results.csv')
         results_file_path = os.path.join(self.input_directory_path, 'results.csv')
-        shutil.copy(results_file_path, self.result_cache)
-        self.result_logger = ResultLogger(self.result_cache)
+        shutil.copy(results_file_path, self.result_cache_path)
+        self.result_logger = ResultLogger(self.result_cache_path)
         # prepare directory for local saving
         self.save_images = config.getboolean('save_images')
         self.save_results = config.getboolean('save_results')
