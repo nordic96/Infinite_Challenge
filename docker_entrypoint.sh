@@ -1,3 +1,3 @@
 #!/bin/bash
 
-python3 -u /src/pipeline.py
+python3 -m pipeline.phase1
