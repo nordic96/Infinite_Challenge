@@ -68,7 +68,7 @@ class Phase1:
             filename = f"{config['episode_number']}_{frame.timestamp.with_delimiter('_')}.jpg"
             dst_path = os.path.join(self.cache_dir.name, filename)
             cv2.imwrite(dst_path, frame.frame)
-            lfilename = f"{config['episode_number']}_{frame.timestamp.with_delimiter('_')}_labelled.jpg"
+            lfilename = f"{config['episode_number']}_{frame.timestamp.with_delimiter('_')}_skull.jpg"
             dst_path = os.path.join(self.cache_dir.name, lfilename)
             cv2.imwrite(dst_path, frame.labelled_frame)
 
@@ -83,9 +83,9 @@ class Phase1:
             path = os.path.join(dir_path, file)
             if file == 'results.csv' and upload_results:
                 self.gdrive.upload_file(path, remote_filepath=os.path.join(dst_dir, 'phase1_results.csv'))
-            elif file.endswith('labelled.jpg') and upload_labelled:
+            elif file.endswith('skull.jpg') and upload_labelled:
                 self.gdrive.upload_file(path, remote_filepath=os.path.join(dst_dir, file))
-            elif file.endswith('.jpg') and not file.endswith('labelled.jpg') and upload_unlabelled:
+            elif file.endswith('.jpg') and not file.endswith('skull.jpg') and upload_unlabelled:
                 self.gdrive.upload_file(path, remote_filepath=os.path.join(dst_dir, file))
 
     def save_cached_files(self, save_images=True, save_results=True):
@@ -94,9 +94,7 @@ class Phase1:
         if not os.path.isdir(out_dir_path):
             raise FileNotFoundError(f'The specified output path is not a directory: {out_dir_path}')
         for file in os.listdir(self.cache_dir.name):
-            if file.endswith('.mp4') or file.endswith('labelled.jpg'):
-                continue
-            elif (file.endswith('.jpg') and save_images) or (file == 'results.csv' and save_results):
+            if (file.endswith('.jpg') and save_images) or (file == 'results.csv' and save_results):
                 dst = os.path.join(out_dir_path, file)
                 dst = os.path.abspath(dst)
                 logger.info(f'Saving {file} to {dst}')
@@ -125,7 +123,9 @@ class Phase1:
                 up_res = config.getboolean('upload_results')
                 logger.info(f'Uploading cached files: '
                             f'unlabelled_images={up_unlabelled}, labelled_images={up_labelled}, results={up_res}')
-                self.upload_cached_files(upload_unlabelled=up_unlabelled, upload_labelled=up_labelled, upload_results=up_res)
+                self.upload_cached_files(upload_unlabelled=up_unlabelled,
+                                         upload_labelled=up_labelled,
+                                         upload_results=up_res)
 
             if config.getboolean('save_cached_files'):
                 save_imgs = config.getboolean('save_images')
