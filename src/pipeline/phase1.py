@@ -38,9 +38,9 @@ class Phase1:
                 os.makedirs(out_dir_path, exist_ok=True)
             self.config['output_directory_path'] = out_dir_path
         self.gdrive = GDrive(token_path=config['token_path'], client_secrets_path=config['client_secrets_path'])
-        if config.getboolean('upload_images') or config.getboolean('upload_results'):
+        if config.getboolean('upload_labelled') or config.getboolean('upload_unlabelled') \
+                or config.getboolean('upload_results'):
             self.config['upload_cached_files'] = 'True'
-
 
     def download_episode(self):
         config = self.config
@@ -76,16 +76,18 @@ class Phase1:
         for frame in extracted_frames:
             self.result_logger.add_skull_entry(self.config['episode_number'], frame.timestamp, frame.coord)
 
-    def upload_cached_files(self, upload_images=True, upload_results=True):
+    def upload_cached_files(self, upload_unlabelled=True, upload_labelled=True, upload_results=True):
         dir_path = self.cache_dir.name
         dst_dir = f'episode{self.config["episode_number"]}_output'
         for file in os.listdir(dir_path):
             path = os.path.join(dir_path, file)
             if file == 'results.csv' and upload_results:
                 self.gdrive.upload_file(path, remote_filepath=os.path.join(dst_dir, 'phase1_results.csv'))
-            if file.endswith('labelled.jpg') and upload_images:
+            elif file.endswith('labelled.jpg') and upload_labelled:
                 self.gdrive.upload_file(path, remote_filepath=os.path.join(dst_dir, file))
-                
+            elif file.endswith('.jpg') and not file.endswith('labelled.jpg') and upload_unlabelled:
+                self.gdrive.upload_file(path, remote_filepath=os.path.join(dst_dir, file))
+
     def save_cached_files(self, save_images=True, save_results=True):
         config = self.config
         out_dir_path = config['output_directory_path']
@@ -118,15 +120,17 @@ class Phase1:
             self.update_results(extracted_frames)
 
             if config.getboolean('upload_cached_files'):
-                up_imgs = config.getboolean('upload_images')
+                up_unlabelled = config.getboolean('upload_unlabelled')
+                up_labelled = config.getboolean('upload_labelled')
                 up_res = config.getboolean('upload_results')
-                logger.info(f'Uploading cached files: labelled_images={up_imgs}, results={up_res}')
-                self.upload_cached_files(upload_images=up_imgs, upload_results=up_res)
+                logger.info(f'Uploading cached files: '
+                            f'unlabelled_images={up_unlabelled}, labelled_images={up_labelled}, results={up_res}')
+                self.upload_cached_files(upload_unlabelled=up_unlabelled, upload_labelled=up_labelled, upload_results=up_res)
 
             if config.getboolean('save_cached_files'):
                 save_imgs = config.getboolean('save_images')
                 save_res = config.getboolean('save_results')
-                logger.info(f'Saving cached files: images={save_imgs}, results={save_res}')
+                logger.info(f'Saving cached files: unlabelled_images={save_imgs}, results={save_res}')
                 self.save_cached_files(save_images=save_imgs, save_results=save_res)
 
             logger.info('Phase 1 complete')
