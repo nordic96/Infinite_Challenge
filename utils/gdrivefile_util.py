@@ -92,7 +92,7 @@ class GDrive:
             return True
         return False
 
-    def _get_file_id(self, remote_filepath):
+    def _get_file_id(self, remote_filepath, folder_id=None):
         """
         Gets the fileId of the first file matching the file name specified
 
@@ -100,7 +100,8 @@ class GDrive:
         :return: file_id of the file if it exists
         """
         folder_name, file_name = os.path.split(remote_filepath)
-        folder_id = self._get_folder_id(folder_name)
+        if not folder_id:
+            folder_id = self._get_folder_id(folder_name)
         logger.debug(f'searching for {file_name} in {folder_name}')
         page_token = None
         while True:
@@ -198,7 +199,7 @@ class GDrive:
 
         if not folders:
             logger.debug(f'Unable to find folder named{folder_name}')
-            raise FileNotFoundError(file_name)
+            raise FileNotFoundError(f'{folder_name} does not exist')
 
         elif len(folders) != 1:
             raise DuplicateError(f'Multiple folders with the name \'{folder_name}\' found. '
@@ -208,7 +209,7 @@ class GDrive:
         logger.debug(f'{folder["name"]}[{folder["id"]}]')
         return folder["id"]
 
-    def upload_file(self, filepath, remote_filepath=None):
+    def upload_file(self, filepath, remote_filepath=None, replace_if_exists=True):
         """ Uploads a file located at the specified filepath to the remote_filepath specified. If no remote_filepath is
         specified, the file is uploaded to the root directory on the drive
 
@@ -221,10 +222,11 @@ class GDrive:
             folder_name = 'root'
         else:
             folder_name, filename = os.path.split(remote_filepath)
+        logger.info(f'Uploading {filename}')
         try:
             folder_id = self._get_folder_id(folder_name)
         except FileNotFoundError:
-            logger.warning(f'Parent directory [{folder_name}] not found, creating directory')
+            logger.info(f'Target folder [{folder_name}] not found, creating directory')
             folder_id = self.mkdir(folder_name)
         file_metadata = {'name': [filename], 'parents': [folder_id]}
 
@@ -232,9 +234,13 @@ class GDrive:
         response_fields = 'id, name, parents'
         try:
             # attempt to update file if one with the same name exists
-            file_id = self._get_file_id(filename)
+            file_id = self._get_file_id(filepath, folder_id=folder_id)
             # if FileNotFoundError was not raised
+
             metadata = self.drive.files().get(fileId=file_id).execute()
+            if not replace_if_exists:
+                logger.info(f"[{filename}] already exists and was not overwritten")
+                return {'id': file_id, 'name': filename, 'parents': [folder_id]}
             del metadata['id']
             file = self.drive.files().update(fileId=file_id,
                                              body=metadata,
