@@ -1,8 +1,8 @@
 import subprocess
 import os
 import cv2
-import model.skull_detection as sd
-from logger.base_logger import logger
+import src.model.skull_detection as sd
+from src.logger.base_logger import logger
 
 
 # Description: Skull Recognition with video stream input

@@ -1,11 +1,11 @@
 import os
 import shutil
 import cv2
-from logger.result_logger import ResultLogger
 from tempfile import TemporaryDirectory
-from logger.base_logger import logger
-from model import vid_recognition as vr
-from utils.gdrivefile_util import GDrive
+from src.logger.result_logger import ResultLogger
+from src.logger.base_logger import logger
+from src.model import vid_recognition as vr
+from src.utils.gdrivefile_util import GDrive
 
 
 # 1. process a single video using model
@@ -142,6 +142,6 @@ class Phase1:
 if __name__ == '__main__':
     import configparser
     config = configparser.ConfigParser()
-    config.read('../strings.ini')
+    config.read('../../strings.ini')
     p1 = Phase1(config['Phase1'])
     p1.run()

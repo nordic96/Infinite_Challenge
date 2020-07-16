@@ -1,6 +1,6 @@
 import http.client
 import json
-from logger.base_logger import logger
+from src.logger.base_logger import logger
 
 
 def headers_with_prediction_key(key):

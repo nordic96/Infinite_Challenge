@@ -1,11 +1,11 @@
 import os
-import model.azure_face_recognition as afr
-from model.vid_recognition import Timestamp
-from logger.result_logger import ResultLogger
-from tempfile import TemporaryDirectory, NamedTemporaryFile
-from logger.base_logger import logger
-from utils.gdrivefile_util import GDrive
 import shutil
+from tempfile import TemporaryDirectory
+from src.model import azure_face_recognition as afr
+from src.model.vid_recognition import Timestamp
+from src.logger.result_logger import ResultLogger
+from src.logger.base_logger import logger
+from src.utils.gdrivefile_util import GDrive
 
 
 class Phase2:

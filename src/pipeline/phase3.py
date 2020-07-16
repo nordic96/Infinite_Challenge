@@ -1,9 +1,9 @@
 import os
-from utils.sql_connecter import SqlConnector
-from logger.result_logger import ResultLogger, FIELDNAME_EP, FIELDNAME_TIME, FIELDNAME_BURNED_MEMBER
 from tempfile import NamedTemporaryFile
-from logger.base_logger import logger
-from utils.gdrivefile_util import GDrive
+from src.utils.sql_connecter import SqlConnector
+from src.logger.result_logger import ResultLogger, FIELDNAME_EP, FIELDNAME_TIME, FIELDNAME_BURNED_MEMBER
+from src.logger.base_logger import logger
+from src.utils.gdrivefile_util import GDrive
 
 
 class Phase2:

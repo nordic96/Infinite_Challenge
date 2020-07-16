@@ -9,7 +9,7 @@ LOG_FORMAT = '%(asctime)s %(module)s:%(funcName)s [%(levelname)s] - %(message)s'
 
 # Initialise strings from config file
 config = configparser.ConfigParser()
-config.read('../strings.ini')
+config.read('../../strings.ini')
 
 logger = logging
 log_path = config['LOG']['logfile_dir']

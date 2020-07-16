@@ -2,7 +2,7 @@ from csv import DictReader, DictWriter, reader
 from math import sqrt
 from shutil import move
 from tempfile import NamedTemporaryFile
-from logger.base_logger import logger
+from src.logger.base_logger import logger
 from re import findall
 
 
