@@ -6,7 +6,7 @@ from PIL import Image, ImageDraw
 from azure.cognitiveservices.vision.face import FaceClient
 from msrest.authentication import CognitiveServicesCredentials
 from azure.cognitiveservices.vision.face.models import TrainingStatusType, Person, SnapshotObjectType, \
-    OperationStatusType
+    OperationStatusType, APIError, APIErrorException
 from logger.base_logger import logger
 
 # Use recognise_face() to handle Phase 2
@@ -89,15 +89,73 @@ def getRectangle(face_dictionary):
 
     return (top, right, bottom, left)
 
+def recognise_faces(fc, image_path, person_group_id):
+    """ Recognize faces in an image
 
-def recognise_faces(fc, img_dir_path, person_group_id, out_dir_path, label_and_save=False):
+    :param fc: FaceClient
+    :param image_path: path to image to recognize faces in
+    :param person_group_id: the id of the trained person group
+    :return: results of detect and identify
     """
-    Identify a face against a defined PersonGroup
+    data = open(image_path, 'rb')
+    face_ids = []
+    faces = {}
+
+    logger.info(f'Detecting faces using Azure Face Client...')
+    detect_results = fc.face.detect_with_stream(data)
+    for face in detect_results:
+        rect = face.face_rectangle
+        l = rect.left
+        t = rect.top
+        r = l + rect.width
+        b = t + rect.height
+        bounding_box = (t, r, b, l)
+        id = face.face_id
+        face_ids.append(id)
+        faces[id] = {'bounding_box': bounding_box}
+    if not faces:
+        logger.info(f'No faces to identify')
+        return faces
+
+    logger.info(f'Identifying faces using Azure Face Client...')
+    identify_results = fc.face.identify(face_ids, person_group_id=person_group_id)
+    for person in identify_results:
+        name = 'unknown'
+        face_id = person.face_id
+        logger.info(f'person: {person}')
+        try:
+            # get the highest probability person_id
+            person_id = person.candidates[0].person_id
+            name = get_name_by_id(fc, person_id, person_group_id)
+            logger.info(f'{name} was identified at {faces[face_id]["bounding_box"]}')
+        except IndexError:
+            logger.info(f'Unable to recognize face at {faces[face_id]["bounding_box"]}.')
+        faces[face_id]['name'] = name
+    return [faces[id] for id in faces]
+
+
+def label_image(faces, image_path, output_path):
+    img = Image.open(image_path)
+    draw = ImageDraw.Draw(img)
+    for face in faces:
+        t, r, b, l = face['bounding_box']
+        bounding_box = (l, t), (r, b)
+        # outline
+        draw.rectangle(bounding_box, outline='green')
+        # label (bottom-left, below outline)
+        w, h = draw.textsize(face['name'])
+        text_bounding_box = (l, b), (l+w, b+h)
+        draw.rectangle(text_bounding_box, fill='green')
+        draw.text((l, b), face['name'])
+    img.save(output_path)
+
+def recognise_faces_many(fc, img_dir_path, person_group_id, out_dir_path, label_and_save=False):
+    """
+    Identify a face against a defined PersonGroup for all images in a specified directory
     """
     logger.info(f'Preparing images in {img_dir_path} ...')
     test_image_array = [file for file in glob.glob('{}/*.*'.format(img_dir_path))]
     no_files = len(test_image_array)
-    no_skips = 0
     no_fails = 0
     result_dict = {}
 
@@ -106,94 +164,14 @@ def recognise_faces(fc, img_dir_path, person_group_id, out_dir_path, label_and_s
             continue
         basename = os.path.basename(image_path)
         logger.info(f'Processing {image_path}...')
-        faces_coord_dict = {}
-        draw = None
-        labelled_image = None
         try:
-            image = open(image_path, 'r+b')
-            # Detect faces
-            face_ids = []
-            logger.info(f'Detecting faces using Azure Face Client...')
-            detected_faces = fc.face.detect_with_stream(image)
-            if len(detected_faces) == 0:
-                no_skips += 1
-                logger.info('No faces detected.')
-                continue
-            logger.info(f'Detected {len(detected_faces)} faces.')
-            # Store bounds of detected faces in mapping of face-id to rectangle (pair of points) of detected faces
-            for face in detected_faces:
-                face_ids.append(face.face_id)
-                faces_coord_dict[face.face_id] = getRectangle(face)
-                # logger.info('Face ID: {}, coordinates: {}'.format(face.face_id, getRectangle(face)))
-            # Identify faces
-            logger.info('Identifying faces using Azure Face Client...')
-            results = fc.face.identify(face_ids, person_group_id=person_group_id)
-            if results is None:
-                logger.info('No faces were identified in {}.'.format(basename))
-                continue
-        except BaseException as ex:
-            logger.warning(f'Error occurred while processing {basename}: {ex.__class__.__name__}')
-            no_fails += 1
-            continue
-
-        if label_and_save:
-            labelled_image = Image.open(image_path)
-            draw = ImageDraw.Draw(labelled_image)
-
-        person_detected_arr = []
-        person_coord_arr = []
-        for person in results:
-            try:
-                detected_name = get_name_by_id(fc, person.candidates[0].person_id, person_group_id)
-                logger.info('{} is identified in {} {}, with a confidence of {}'.format(
-                    detected_name,
-                    basename,
-                    faces_coord_dict[person.face_id],
-                    person.candidates[0].confidence,
-                ))
-            except IndexError:
-                detected_name = 'unknown'
-                logger.warning('Unable to identify a face [face_id = {}] which was detected in {}: No candidates found.'.format(person.face_id, basename))
-
-            person_detected_arr.append(detected_name)
-            person_coord_arr.append(faces_coord_dict[person.face_id])
-
+            faces = recognise_faces(fc, image_path, person_group_id)
             if label_and_save:
-                t, r, b, l = faces_coord_dict[person.face_id]
-                draw.rectangle((l, t), (r, b), outline='red')
-                labelled_image.save(os.path.join(out_dir_path, '{}_output.png'.format(detected_name)))
-
-        result_dict[os.path.basename(basename)] = (person_detected_arr, person_coord_arr)
-
-    logger.info('Result: Total {} images, {} skipped images, {} processing failed...'.format(no_files, no_skips, no_fails))
+                label_image(faces, image_path,os.path.join(out_dir_path, basename))
+            result_dict[os.path.basename(basename)] = faces
+        except (APIErrorException, APIError) as ex:
+            logger.error(f'Failed to process {basename}', ex)
+            no_fails += 1
+    logger.info('Result: Total {} images, {} processing failed...'.format(no_files, no_fails))
     # Returns the face & coord dict
     return result_dict
-
-
-if __name__ == '__main__':
-    # from configparser import ConfigParser
-    # config = ConfigParser()
-    # config.read('strings.ini')
-    # person_group_id = config['FACE']['person_group_id']
-    # endpoint = config['FACE']['endpoint']
-    # out_dir_path = config['FACE']['out_dir_path']
-    # known_faces_dir = config['FACE']['known_faces_dir']
-    # key = os.environ['IC_AZURE_KEY_FACE']
-    #
-    #
-    # face_client = authenticate_client(endpoint, key)
-    # # Create empty Person Group. Person Group ID must be lower case, alphanumeric, and/or with '-', '_'.
-    # face_client.person_group.delete(person_group_id)
-    #
-    # training_required = init_person_group(face_client, person_group_id, known_faces_dir)
-    # if training_required:
-    #     logger.info('Training required. Proceed to training...')
-    #     train(face_client, person_group_id)
-    #
-    # # path of directory containing images to use the model on
-    # test_image_path_dir = ""
-    #
-    # results = recognise_faces(face_client, person_group_id, test_image_path_dir, out_dir_path)
-    # logger.info(results)
-    exit(0)
-
