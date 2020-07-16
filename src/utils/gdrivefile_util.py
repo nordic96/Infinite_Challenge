@@ -256,7 +256,7 @@ class GDrive:
 
 
 if __name__ == '__main__':
-    drive = GDrive(token_path='../token.pickle', client_secrets_path='../credentials.json')
+    drive = GDrive(token_path='../../token.pickle', client_secrets_path='../../credentials.json')
 
     # Call the Drive v3 API
     file_name = 'episode10.mp4'

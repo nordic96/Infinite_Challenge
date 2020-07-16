@@ -4,8 +4,6 @@ import json
 from torch.utils.data import DataLoader
 
 from utils import google_utils
-from utils.datasets import *
-from utils.utils import *
 
 
 def test(data,
