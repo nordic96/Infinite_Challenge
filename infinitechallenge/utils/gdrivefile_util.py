@@ -121,6 +121,8 @@ class GDrive:
             raise DuplicateError('File paths should be unique')
         elif len(matches) == 1:
             return matches[0]['id']
+        else:
+            raise FileNotFoundError(f'{folder_name}/{file_name} does not exist')
 
     def list_files(self, page_size=10):
         """
