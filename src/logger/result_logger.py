@@ -1,9 +1,7 @@
-from csv import DictReader, DictWriter, reader
-from math import sqrt
-from shutil import move
 from tempfile import NamedTemporaryFile
 from src.logger.base_logger import logger
-from re import findall
+import pandas
+import ast
 
 
 FIELDNAME_EP = 'episode_no'  # should match database
@@ -19,216 +17,98 @@ FIELDNAME_BURNED_MEMBER = 'member'  # should match database
 # Brian Fung
 
 
-def distance(pt1, pt2):
-    (x1,y1), (x2,y2) = pt1, pt2
-    x = (x1 + x2) / 2.0
-    y = (y1 + y2) / 2.0
-    return sqrt(pow(x,2) + pow(y,2))
+class Results:
+    INDEX_FIELDS = [FIELDNAME_EP, FIELDNAME_TIME]
+    VALUE_FIELDS = [FIELDNAME_SC_LIST, FIELDNAME_FC_LIST, FIELDNAME_NAME_LIST, FIELDNAME_BURNED_MEMBER]
+    FIELDNAMES = INDEX_FIELDS + VALUE_FIELDS
 
-def _has_valid_header_util(fieldnames, filepath):
-    try:
-        header = next(reader(open(filepath, 'r')))
-        return set(header).difference(set(fieldnames)) == set()
-    except StopIteration:
-        return False
+    def __init__(self, data: pandas.DataFrame):
+        self.data = data
 
+    @classmethod
+    def parse_list(cls, str_to_parse):
+        try:
+            if type(str_to_parse) is list:
+                return str_to_parse
+            return ast.literal_eval(str_to_parse)
+        except SyntaxError:
+            return None
 
-def _get_coord_list_col_util(string):
-    pattern = '(\\((?:[^\\(])+\\))'
-    l = findall(pattern, string)
-    coords = []
-    for tup in l:
-        tup = tup.split(',')
-        tup = tuple(map(lambda s: float(s.replace('(', '').replace(')', '')), map(str.strip, tup)))
-        coords.append(tup)
-    return coords
+    @classmethod
+    def blank(cls):
+        temp = NamedTemporaryFile(mode='w+')
+        temp.write(','.join(Results.FIELDNAMES))
+        temp.seek(0)
+        return Results.read(temp.name)
 
+    @classmethod
+    def read(cls, file_path):
+        data = pandas.read_csv(file_path,
+                               index_col=(FIELDNAME_EP, FIELDNAME_TIME),
+                               dtype={FIELDNAME_EP: 'int',
+                                      FIELDNAME_TIME: 'str',
+                                      FIELDNAME_NAME_LIST: 'object',
+                                      FIELDNAME_SC_LIST: 'object',
+                                      FIELDNAME_FC_LIST: 'object',
+                                      FIELDNAME_BURNED_MEMBER: 'string'},
+                               keep_default_na=False,
+                               encoding='utf8',
+                               usecols=Results.FIELDNAMES)
+        return Results(data)
 
-def _get_namelist_col_util(string):
-    pattern = "'([^']+)'"
-    res = findall(pattern, string)
-    return res
+    def add_skull_entry(self, ep, time, skull_list):
+        idx = pandas.MultiIndex.from_tuples([(ep, time)], names=Results.INDEX_FIELDS)
+        entry = pandas.DataFrame([[skull_list, None, None, None]], index=idx, columns=Results.VALUE_FIELDS)
+        try:
+            self.data = self.data.append(entry, verify_integrity=True)
+            logger.info(f'Entry for [{time} @ ep{ep}] was created.')
+        except ValueError:
+            logger.info(f'Entry for [{time} @ ep{ep}] already has skull detection results, overwriting...')
+            self.data.update(entry)
 
+    def update_face_entry(self, ep, time, face_list, name_list):
+        idx = pandas.MultiIndex.from_tuples([(ep, time)], names=Results.INDEX_FIELDS)
+        entry = pandas.DataFrame([[None, face_list, name_list, None]], index=idx, columns=Results.VALUE_FIELDS)
+        try:
+            self.data.update(entry, errors='raise')
+            logger.info(f'Entry for [{time} @ ep{ep}] was updated with face recognition results.')
+        except ValueError:
+            logger.info(f'Entry for [{time} @ ep{ep}] already has face recognition results, overwriting...')
+            self.data.update(entry)
 
-def _average_centre_util(coords):
-    n = len(coords)
-    if n == 0:
-        return None
-    sum_x = 0
-    sum_y = 0
-    for coord in coords:
-        x, y = _centre_util(coord)
-        sum_x += x
-        sum_y += y
-    n = float(n)
-    return sum_x / n, sum_y / n
+    def update_burned_member(self, ep, time, burned):
+        idx = pandas.MultiIndex.from_tuples([(ep, time)], names=Results.INDEX_FIELDS)
+        entry = pandas.DataFrame([[None, None, None, burned]], index=idx, columns=Results.VALUE_FIELDS)
+        try:
+            self.data.update(entry, errors='raise')
+            logger.info(f'Entry for [{time} @ ep{ep}] was updated with burned member results.')
+        except ValueError:
+            logger.info(f'Entry for [{time} @ ep{ep}] already has burned member results, overwriting...')
+            self.data.update(entry)
 
-def _centre_util(coordinate):
-    top, left, bottom, right = coordinate
-    y = (top + bottom) / 2.0
-    x = (left + right) / 2.0
-    return x, y
+    def get_entry(self, ep, time):
+        idx = pandas.MultiIndex.from_tuples([(ep, time)], names=Results.INDEX_FIELDS)
+        entries = self.data.loc[idx].values.tolist()
+        assert len(entries) <= 1
+        sc_list, fc_list, name_list, burned = entries[0]
+        sc_list = Results.parse_list(sc_list)
+        fc_list = Results.parse_list(fc_list)
+        name_list = Results.parse_list(name_list)
+        burned = burned if burned else None
+        return sc_list, fc_list, name_list, burned
 
-
-class ResultLogger:
-    FIELDNAMES = [FIELDNAME_EP, FIELDNAME_TIME, FIELDNAME_SC_LIST, FIELDNAME_FC_LIST, FIELDNAME_NAME_LIST, FIELDNAME_BURNED_MEMBER]
-
-    def __init__(self, filepath):
-        self.filepath = filepath
-        if not _has_valid_header_util(ResultLogger.FIELDNAMES, filepath):
-            logger.warning(f'Invalid headers. {filepath} will be overwritten')
-            f = open(filepath, 'w')
-            DictWriter(f, fieldnames=ResultLogger.FIELDNAMES).writeheader()
-
-    def _update_entry(self, ep, time, sc_list=None, fc_list=None, name_list=None, burned=None):
-        assert ep is not None
-        assert time is not None
-        # mode:
-        # e : edit: updates sc, fc, name
-        # a : edit(exists)/append(doesn't exist)
-        written = 0
-        rf = open(self.filepath, 'r')
-        wf = NamedTemporaryFile(mode='w', delete=False)
-        reader = DictReader(rf, fieldnames=ResultLogger.FIELDNAMES)
-        writer = DictWriter(wf, fieldnames=ResultLogger.FIELDNAMES)
-        header = True
-        for row in reader:
-            # skip header row
-            if header:
-                writer.writeheader()
-                header = False
-                continue
-            # update row (edit/delete)
-            if row[FIELDNAME_EP] == str(ep) and row[FIELDNAME_TIME] == str(time):
-                logger.info('Editing entry for frame [{} @ ep{}]'.format(time, ep))
-                written = writer.writerow({
-                    # entry id
-                    FIELDNAME_EP: row[FIELDNAME_EP], FIELDNAME_TIME: row[FIELDNAME_TIME],
-                    # image processing data
-                    FIELDNAME_SC_LIST: sc_list, FIELDNAME_FC_LIST: fc_list, FIELDNAME_NAME_LIST: name_list,
-                    # estimated result
-                    FIELDNAME_BURNED_MEMBER: burned
-                })
-            # copy row
-            else:
-                writer.writerow(row)
-        move(wf.name, self.filepath)
-        return written
-
-    def _append_entry(self, episode, time, sc_list=None, fc_list=None, name_list=None, burned=None):
-        f = open(self.filepath, 'a')
-        writer = DictWriter(f, fieldnames=ResultLogger.FIELDNAMES)
-        logger.info('Adding new entry for [{} @ ep{}]'.format(time, episode))
-        return writer.writerow({
-            # entry id
-            FIELDNAME_EP: episode, FIELDNAME_TIME: time,
-            # image processing data
-            FIELDNAME_SC_LIST: sc_list, FIELDNAME_FC_LIST: fc_list, FIELDNAME_NAME_LIST: name_list,
-            # estimated result
-            FIELDNAME_BURNED_MEMBER: burned
-        })
-
-    def add_skull_entry(self, ep, time, sc):
-        self._get_entry(ep, time)
-        if self._get_entry(ep, time) is not None:
-            logger.warning(f'Entry for [{time} @ ep{ep}] already exists. Editing entry...')
-            return self._update_entry(ep, time, sc)
-        else:
-            return self._append_entry(ep, time, sc)
-
-    def _get_entry(self, ep, time):
-        with open(self.filepath, 'r') as f:
-            reader = DictReader(f)
-            for row in reader:
-                if row[FIELDNAME_EP] == str(ep) and row[FIELDNAME_TIME] == str(time):
-                    return row
-        return None
-
-    def update_face_entry(self, ep, time, fc, name):
-        entry = self._get_entry(ep, time)
-        if entry is None:
-            logger.warning(f'Entry for [{time} @ ep{ep}] does not exist. Unable to update with results.')
-            return 0
-        return self._update_entry(ep, time, entry[FIELDNAME_SC_LIST], fc, name)
-
-    def _get_column(self, header):
-        r = DictReader(open(self.filepath, 'r'), fieldnames=ResultLogger.FIELDNAMES)
-        col = []
-        is_header = True
-        for row in r:
-            if is_header:
-                assert row[header] == header, f'{row[header]} : {header}'
-                is_header = False
-                continue
-            col.append(row[header])
-        return col
-
-    def bulk_update_entries(self, list_of_entry_dicts):
+    def get_entries(self):
+        indexes = self.data.index.values.tolist()
         entries = {}
-        for entry_dict in list_of_entry_dicts:
-            id = (entry_dict[FIELDNAME_EP], entry_dict[FIELDNAME_TIME])
-            entry_dict.pop(FIELDNAME_EP)
-            entry_dict.pop(FIELDNAME_TIME)
-            entries[id] = dict()
-            for field in entry_dict:
-                entries[id][field] = entry_dict[field]
-        rf = open(self.filepath, 'r')
-        wf = NamedTemporaryFile(mode='w', delete=False)
-        reader = DictReader(rf, fieldnames=ResultLogger.FIELDNAMES)
-        writer = DictWriter(wf, fieldnames=ResultLogger.FIELDNAMES)
-        for row in reader:
-            ep = row[FIELDNAME_EP]
-            time = row[FIELDNAME_TIME]
-            if (ep, time) in entries:
-                try:
-                    sc_list = entries[(ep, time)][FIELDNAME_SC_LIST]
-                except KeyError:
-                    sc_list = row[FIELDNAME_SC_LIST]
-                try:
-                    fc_list = entries[(ep, time)][FIELDNAME_FC_LIST]
-                except KeyError:
-                    fc_list = row[FIELDNAME_FC_LIST]
-                try:
-                    name_list = entries[(ep, time)][FIELDNAME_NAME_LIST]
-                except KeyError:
-                    name_list = row[FIELDNAME_NAME_LIST]
-                try:
-                    burned_member = entries[(ep, time)][FIELDNAME_BURNED_MEMBER]
-                except KeyError:
-                    burned_member = row[FIELDNAME_BURNED_MEMBER]
-                writer.writerow({
-                    FIELDNAME_EP: ep, FIELDNAME_TIME: time,
-                    FIELDNAME_SC_LIST: sc_list, FIELDNAME_FC_LIST: fc_list, FIELDNAME_NAME_LIST: name_list,
-                    FIELDNAME_BURNED_MEMBER: burned_member
-                })
-            else:
-                writer.writerow(row)
-        move(wf.name, self.filepath)
+        for ep, time in indexes:
+            sc_list, fc_list, name_list, burned_member = self.get_entry(ep, time)
+            entries[(ep, time)] = {FIELDNAME_SC_LIST: sc_list,
+                                   FIELDNAME_FC_LIST: fc_list,
+                                   FIELDNAME_NAME_LIST: name_list,
+                                   FIELDNAME_BURNED_MEMBER: burned_member}
+        return entries
 
-    def estimate_burned_member(self):
-        episode_entries = self._get_column(FIELDNAME_EP)
-        time_entries = self._get_column(FIELDNAME_TIME)
-        sclist_entries = list(map(_get_coord_list_col_util, self._get_column(FIELDNAME_SC_LIST)))
-        fclist_entries = list(map(_get_coord_list_col_util, self._get_column(FIELDNAME_FC_LIST)))
-        names_entries = list(map(_get_namelist_col_util, self._get_column(FIELDNAME_NAME_LIST)))
-        # find closest face to skull for each entry
-        estimates = []
-        for ep, time, names, fclist, sclist in zip(episode_entries, time_entries, names_entries, fclist_entries,
-                                                   sclist_entries):
-            sk_avg = _average_centre_util(sclist)
-            if len(names) == 0:
-                estimates.append({FIELDNAME_EP: ep, FIELDNAME_TIME: time, FIELDNAME_BURNED_MEMBER: 'NO_FACE_FOUND'})
-                logger.warning(f'[{time} @ ep{ep}] No burned member: No faces found')
-            else:
-                burned = None
-                distance_from_skull = {}
-                for member, coordinate in zip(names, fclist):
-                    cd = _centre_util(coordinate)
-                    dist = distance(cd, sk_avg)
-                    distance_from_skull[member] = dist
-                    if burned is None or dist < distance_from_skull[burned]:
-                        burned = member
-                estimates.append({FIELDNAME_EP: ep, FIELDNAME_TIME: time, FIELDNAME_BURNED_MEMBER: burned})
-                logger.info(f'[{time} @ ep{ep}] {burned} burned: Distances from centre of skull(s): {distance_from_skull}')
-        return estimates
 
+    def write(self, file_path):
+        self.data.to_csv(file_path)
+        logger.info(f"Results have been saved to '{file_path}'.")
