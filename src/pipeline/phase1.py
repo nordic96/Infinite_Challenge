@@ -3,8 +3,8 @@ import sys
 import shutil
 import configparser
 import cv2
-from tempfile import TemporaryDirectory
-from src.logger.result_logger import ResultLogger
+from tempfile import TemporaryDirectory, NamedTemporaryFile
+from src.pipeline import Results
 from src.logger.base_logger import logger
 from src.model import vid_recognition as vr
 from src.utils.gdrivefile_util import GDrive
@@ -20,24 +20,19 @@ class Phase1:
 
         # prepare directory for caching
         self.cache_dir = TemporaryDirectory()
-        self.result_cache = os.path.join(self.cache_dir.name, 'results.csv')
-        with open(self.result_cache, 'w') as f:
-            f.write('')
-        self.result_logger = ResultLogger(self.result_cache)
+        self.results = Results.blank()
         # prepare directory for local saving
-        if config.getboolean('save_images') or config.getboolean('save_results'):
-            self.save_images = config.getboolean('save_images')
-            self.save_results = config.getboolean('save_results')
+        self.save_images = config.getboolean('save_images')
+        self.save_results = config.getboolean('save_results')
+        if self.save_images or self.save_results:
             out_dir_path = os.path.join(config['output_directory_path'], f'episode{self.episode_number}')
             if not os.path.exists(out_dir_path):
                 os.makedirs(out_dir_path, exist_ok=True)
             self.output_directory_path = out_dir_path
         # for uploading cached files
-        if config.getboolean('upload_labelled') or config.getboolean('upload_unlabelled') \
-                or config.getboolean('upload_results'):
-            self.upload_unlabelled = config.getboolean('upload_unlabelled')
-            self.upload_labelled = config.getboolean('upload_labelled')
-            self.upload_results = config.getboolean('upload_results')
+        self.upload_unlabelled = config.getboolean('upload_unlabelled')
+        self.upload_labelled = config.getboolean('upload_labelled')
+        self.upload_results = config.getboolean('upload_results')
         # for video processing
         self.display = config.getboolean('display')
         self.video_sample_rate = config.getint('video_sample_rate')
@@ -81,31 +76,37 @@ class Phase1:
 
     def update_results(self, extracted_frames):
         for frame in extracted_frames:
-            self.result_logger.add_skull_entry(self.episode_number, frame.timestamp, frame.coord)
+            self.results.add_skull_entry(self.episode_number, str(frame.timestamp), frame.coord)
 
     def upload_cached_files(self):
         dir_path = self.cache_dir.name
         dst_dir = f'episode{self.episode_number}_output'
         for file in os.listdir(dir_path):
             path = os.path.join(dir_path, file)
-            if file == 'results.csv' and self.upload_results:
-                self.gdrive.upload_file(path, remote_filepath=os.path.join(dst_dir, 'phase1_results.csv'))
-            elif file.endswith('skull.jpg') and self.upload_labelled:
+            if file.endswith('skull.jpg') and self.upload_labelled:
                 self.gdrive.upload_file(path, remote_filepath=os.path.join(dst_dir, file))
             elif file.endswith('.jpg') and not file.endswith('skull.jpg') and self.upload_unlabelled:
                 self.gdrive.upload_file(path, remote_filepath=os.path.join(dst_dir, file))
+        if self.upload_results:
+            tempfile = NamedTemporaryFile()
+            self.results.write(tempfile)
+            tempfile.seek(0)
+            self.gdrive.upload_file(tempfile.name, remote_filepath=os.path.join(dst_dir, 'phase1_results.csv'))
 
     def save_cached_files(self):
         out_dir_path = self.output_directory_path
         if not os.path.isdir(out_dir_path):
             raise FileNotFoundError(f'The specified output path is not a directory: {out_dir_path}')
-        for file in os.listdir(self.cache_dir.name):
-            if (file.endswith('.jpg') and self.save_images) or (file == 'results.csv' and self.save_results):
-                dst = os.path.join(out_dir_path, file)
-                dst = os.path.abspath(dst)
-                logger.info(f'Saving {file} to {dst}')
-                shutil.move(os.path.join(self.cache_dir.name, file), dst)
-        
+        if self.save_results:
+            for file in os.listdir(self.cache_dir.name):
+                if file.endswith('.jpg'):
+                    dst = os.path.join(out_dir_path, file)
+                    dst = os.path.abspath(dst)
+                    logger.info(f'Saving {file} to {dst}')
+                    shutil.move(os.path.join(self.cache_dir.name, file), dst)
+        if self.save_results:
+            self.results.write(os.path.join(out_dir_path, 'results.csv'))
+
     def run(self):
         try:
             logger.info('Phase 1 start')

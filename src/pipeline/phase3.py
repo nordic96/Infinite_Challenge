@@ -1,55 +1,72 @@
 import os
+import sys
 from tempfile import NamedTemporaryFile
+from src.model import estimate_burned_member
 from src.utils.sql_connecter import SqlConnector
-from src.logger.result_logger import ResultLogger, FIELDNAME_EP, FIELDNAME_TIME, FIELDNAME_BURNED_MEMBER
+from src.pipeline import Results
 from src.logger.base_logger import logger
 from src.utils.gdrivefile_util import GDrive
 
 
-class Phase2:
-    def __init__(self, config):
+class Phase3:
+    def __init__(self, config, episode_number):
         logger.info('initializing phase3 parameters')
-        self.config = config
-        try:
-            self.config['episode_number'] = os.environ['IC_EPISODE_NUMBER']
-            self.config['db_password'] = os.environ['IC_RDS_PASSWORD']
-            self.config['token_path'] = os.environ['IC_GDRIVE_AUTH_TOKEN_PATH']
-            self.config['client_secrets_path'] = os.environ['IC_GDRIVE_CLIENT_SECRETS_PATH']
-        except KeyError as ex:
-            logger.error('Missing required environment variable')
-            raise ex
+        self.episode_number = episode_number
 
-        self.result_cache = None
-        result_file_path = self.config['result_file_path']
-        if not os.path.exists(result_file_path):
-            with open(result_file_path, 'w') as f:
-                f.write('')
-        if not os.path.isfile(result_file_path):
-            self.result_cache = NamedTemporaryFile()
-            self.config['result_file_path'] = self.result_cache.name
+        input_directory_path = os.path.join(config['input_directory_path'], f'episode{episode_number}')
+        self.save_results = config['save_results']
+        self.upload_results = config['upload_results']
+        self.output_directory_path = os.path.join(config['output_directory_path'], f'episode{episode_number}')
+        if self.save_results:
+            os.makedirs(self.output_directory_path, exist_ok=True)
+        self.results = Results.read(os.path.join(input_directory_path, 'results.csv'))
+        self.database = SqlConnector(config['db_endpoint'],
+                                     config['db_name'],
+                                     config['db_username'],
+                                     os.environ['IC_RDS_PASSWORD'])
+        self.db_tablename = config['db_tablename']
+        # for uploading
+        self.upload_results = config['upload_results']
+        self.gdrive = GDrive(token_path=os.environ['IC_GDRIVE_AUTH_TOKEN_PATH'],
+                             client_secrets_path=os.environ['IC_GDRIVE_CLIENT_SECRETS_PATH'])
 
-        self.result_logger = ResultLogger(self.config['result_file_path'])
-        self.gdrive = GDrive(token_path=self.config['token_path'],
-                             client_secrets_path=self.config['client_secrets_path'])
+    def upload_cached_files(self):
+        remote_dir = f'episode{self.episode_number}_output'
+        if self.upload_results:
+            tempfile = NamedTemporaryFile()
+            self.results.write(tempfile.name)
+            tempfile.seek(0)
+            self.gdrive.upload_file(tempfile.name, remote_filepath=os.path.join(remote_dir, 'phase3_results.csv'))
 
-    def upload_output_files(self):
-        self.gdrive.upload_file(self.config['result_file_path'],
-                                folder_name="Test",
-                                file_name=f'ep{self.config["episode_number"]}_phase3_results.csv')
+    def save_cached_files(self):
+        if self.save_results:
+            self.results.write(os.path.join(self.output_directory_path, 'results.csv'))
+
+    def process_results(self):
+        entries = self.results.get_entries()
+        for idx in entries:
+            entry = entries[idx]
+            burned = estimate_burned_member(entry[Results.FIELDNAME_SC_LIST], entry[Results.FIELDNAME_FC_LIST], entry[Results.FIELDNAME_NAME_LIST])
+            ep, time = idx
+            if burned:
+                self.results.update_burned_member(ep, time, burned)
+            else:
+                self.results.update_burned_member(ep, time, 'NO_BURN')
+
+    def update_database(self):
+        tempfile = NamedTemporaryFile()
+        self.results.write(tempfile.name)
+        tempfile.seek(0)
+        self.database.bulk_insert_csv(tempfile.name, self.db_tablename, [Results.FIELDNAME_EP, Results.FIELDNAME_TIME, Results.FIELDNAME_BURNED_MEMBER])
 
     def run(self):
         try:
             logger.info('Estimating burned members...')
-            list_of_dict = self.result_logger.estimate_burned_member()
-            self.result_logger.bulk_update_entries(list_of_dict)
+            self.process_results()
             logger.info('Updating database...')
-            con = SqlConnector(self.config['result_file_path'],
-                               self.config['db_endpoint'],
-                               self.config['db_name'],
-                               self.config['db_username'],
-                               self.config['db_password'])
-            con.bulk_insert_csv(self.config['db_tablename'], [FIELDNAME_EP, FIELDNAME_TIME, FIELDNAME_BURNED_MEMBER])
-            self.upload_output_files()
+            self.update_database()
+            self.upload_cached_files()
+            self.save_cached_files()
         except Exception as ex:
             logger.error('Phase 3 failed')
             raise ex
@@ -58,6 +75,6 @@ class Phase2:
 if __name__ == '__main__':
     import configparser
     config = configparser.ConfigParser()
-    config.read('../strings.ini')
-    p1 = Phase2(config['Phase3'])
-    p1.run()
+    config.read(sys.argv[1])
+    p3 = Phase3(config['Phase3'], sys.argv[2])
+    p3.run()

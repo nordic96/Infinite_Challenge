@@ -2,10 +2,10 @@ import os
 import sys
 import shutil
 import configparser
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory, NamedTemporaryFile
 from src.model import azure_face_recognition as afr
 from src.model.vid_recognition import Timestamp
-from src.logger.result_logger import ResultLogger
+from src.pipeline import Results
 from src.logger.base_logger import logger
 from src.utils.gdrivefile_util import GDrive
 
@@ -18,10 +18,8 @@ class Phase2:
         self.input_directory_path = os.path.join(config['input_directory_path'],  f'episode{episode_number}')
         # prepare directory for caching
         self.cache_dir = TemporaryDirectory()
-        self.result_cache_path = os.path.join(self.cache_dir.name, 'results.csv')
         results_file_path = os.path.join(self.input_directory_path, 'results.csv')
-        shutil.copy(results_file_path, self.result_cache_path)
-        self.result_logger = ResultLogger(self.result_cache_path)
+        self.results = Results.read(results_file_path)
         # prepare directory for local saving
         self.save_images = config.getboolean('save_images')
         self.save_results = config.getboolean('save_results')
@@ -43,23 +41,29 @@ class Phase2:
     def upload_cached_files(self):
         dir_path = self.cache_dir.name
         dst_dir = f'episode{self.episode_number}_output'
-        for file in os.listdir(dir_path):
-            path = os.path.join(dir_path, file)
-            if file == 'results.csv' and self.upload_results:
-                self.gdrive.upload_file(path, remote_filepath=os.path.join(dst_dir, 'phase2_results.csv'))
-            elif file.endswith('face.jpg') and self.upload_labelled:
-                self.gdrive.upload_file(path, remote_filepath=os.path.join(dst_dir, file))
+        if self.upload_labelled:
+            for file in os.listdir(dir_path):
+                path = os.path.join(dir_path, file)
+                if file.endswith('face.jpg') and self.upload_labelled:
+                    self.gdrive.upload_file(path, remote_filepath=os.path.join(dst_dir, file))
+        if self.upload_results:
+            tempfile = NamedTemporaryFile()
+            self.results.write(tempfile.name)
+            tempfile.seek(0)
+            self.gdrive.upload_file(tempfile.name, remote_filepath=os.path.join(dst_dir, 'phase2_results.csv'))
 
     def save_cached_files(self):
         out_dir_path = self.output_directory_path
         if not os.path.isdir(out_dir_path):
             raise FileNotFoundError(f'The specified output path is not a directory: {out_dir_path}')
         for file in os.listdir(self.cache_dir.name):
-            if (file.endswith('.jpg') and self.save_images) or (file == 'results.csv' and self.save_results):
+            if file.endswith('.jpg') and self.save_images:
                 dst = os.path.join(out_dir_path, file)
                 dst = os.path.abspath(dst)
                 logger.info(f'Saving {file} to {dst}')
                 shutil.move(os.path.join(self.cache_dir.name, file), dst)
+        if self.save_results:
+            self.results.write(os.path.join(out_dir_path, 'results.csv'))
 
     def process_images(self, image_paths):
         mappings = {}
@@ -70,7 +74,10 @@ class Phase2:
             mappings[filename] = faces
             logger.info(f'Caching labelled images')
             name, ext = filename.split('.')
-            face_labelled_image_path = os.path.join(self.cache_dir.name, f'{name}_face.{ext}')
+            if faces:
+                face_labelled_image_path = os.path.join(self.cache_dir.name, f'{name}_face.{ext}')
+            else:
+                face_labelled_image_path = os.path.join(self.cache_dir.name, f'{name}_noface.{ext}')
             skull_labelled_image_path = os.path.join(in_dir_path, f'{name}_skull.{ext}')
             # overlay face labels over skull labels from previous phase
             afr.label_image(faces, skull_labelled_image_path, face_labelled_image_path)
@@ -86,12 +93,12 @@ class Phase2:
                 bounding_boxes.append(face['bounding_box'])
             entry_id = filename.split('.')[0]
             ep, h, m, s, ms = entry_id.split('_')
-            self.result_logger.update_face_entry(ep, Timestamp(h, m, s, ms), bounding_boxes, names)
+            self.results.update_face_entry(ep, str(Timestamp(h,m,s,ms)), bounding_boxes, names)
 
     def get_imagepaths(self):
         in_dir_path = self.input_directory_path
         paths = [os.path.join(in_dir_path, filename) for filename in os.listdir(in_dir_path)]
-        return list(filter(lambda x: x.endswith('.jpg') and not x.endswith('_skull.jpg'), paths))
+        return list(filter(lambda filename: filename.endswith('.jpg') and not filename.endswith('_skull.jpg'), paths))
 
     def run(self):
         try:
@@ -112,5 +119,5 @@ class Phase2:
 if __name__ == '__main__':
     config = configparser.ConfigParser()
     config.read(sys.argv[1])
-    p1 = Phase2(config['Phase2'], sys.argv[2])
-    p1.run()
+    p2 = Phase2(config['Phase2'], sys.argv[2])
+    p2.run()
