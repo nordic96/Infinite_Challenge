@@ -48,7 +48,7 @@ class Phase2:
                 if file.endswith('face.jpg') and self.upload_labelled:
                     self.gdrive.upload_file(path, remote_filepath=os.path.join(dst_dir, file))
         if self.upload_results:
-            tempfile = NamedTemporaryFile()
+            tempfile = NamedTemporaryFile(suffix='.csv')
             self.results.write(tempfile.name)
             tempfile.seek(0)
             self.gdrive.upload_file(tempfile.name, remote_filepath=os.path.join(dst_dir, 'phase2_results.csv'))

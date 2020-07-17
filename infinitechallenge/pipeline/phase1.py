@@ -89,8 +89,8 @@ class Phase1:
             elif file.endswith('.jpg') and not file.endswith('skull.jpg') and self.upload_unlabelled:
                 self.gdrive.upload_file(path, remote_filepath=os.path.join(dst_dir, file))
         if self.upload_results:
-            tempfile = NamedTemporaryFile()
-            self.results.write(tempfile)
+            tempfile = NamedTemporaryFile(suffix='.csv')
+            self.results.write(tempfile.name)
             tempfile.seek(0)
             self.gdrive.upload_file(tempfile.name, remote_filepath=os.path.join(dst_dir, 'phase1_results.csv'))
 

@@ -35,7 +35,7 @@ class Phase3:
     def upload_cached_files(self):
         remote_dir = f'episode{self.episode_number}_output'
         if self.upload_results:
-            tempfile = NamedTemporaryFile()
+            tempfile = NamedTemporaryFile(suffix='.csv')
             self.results.write(tempfile.name)
             tempfile.seek(0)
             self.gdrive.upload_file(tempfile.name, remote_filepath=os.path.join(remote_dir, 'phase3_results.csv'))
@@ -56,7 +56,7 @@ class Phase3:
                 self.results.update_burned_member(ep, time, 'NO_BURN')
 
     def update_database(self):
-        tempfile = NamedTemporaryFile()
+        tempfile = NamedTemporaryFile(suffix='.csv')
         self.results.write(tempfile.name)
         tempfile.seek(0)
         self.database.bulk_insert_csv(tempfile.name, self.db_tablename, [Results.FIELDNAME_EP, Results.FIELDNAME_TIME, Results.FIELDNAME_BURNED_MEMBER])
