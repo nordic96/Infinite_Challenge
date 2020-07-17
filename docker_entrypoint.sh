@@ -21,6 +21,6 @@ fi
 
 EPISODE=$2
 
-python3 -um src.pipeline.phase1 $CONFIG_FILE_PATH $EPISODE
-#python3 -um src.pipeline.phase2 $CONFIG_FILE_PATH $EPISODE
-#python3 -um src.pipeline.phase3 $CONFIG_FILE_PATH $EPISODE
+#python3 -um infinitechallenge.pipeline.phase1 $CONFIG_FILE_PATH $EPISODE
+#python3 -um infinitechallenge.pipeline.phase2 $CONFIG_FILE_PATH $EPISODE
+python3 -um infinitechallenge.pipeline.phase3 $CONFIG_FILE_PATH $EPISODE

@@ -20,7 +20,6 @@ if True:
 
 def add_file_handler(base_dir):
     logfile_dir = os.path.join(base_dir,
-                               'logs',
                                datetime.now().strftime('%Y_%m_%d'))
     logfile_name = os.path.join(logfile_dir, f'{datetime.now().strftime("%Y_%m_%d_%H_%M_%S")}.log')
     os.makedirs(logfile_dir, exist_ok=True)

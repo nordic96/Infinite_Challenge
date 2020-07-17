@@ -120,6 +120,6 @@ class Phase2:
 if __name__ == '__main__':
     config = configparser.ConfigParser()
     config.read(sys.argv[1])
-    infinitechallenge.logging.add_file_handler(config['LOG']['base_directory'])
+    infinitechallenge.logging.add_file_handler(config['LOG']['logfile_directory'])
     p2 = Phase2(config['Phase2'], sys.argv[2])
     p2.run()

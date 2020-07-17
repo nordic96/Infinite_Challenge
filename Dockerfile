@@ -18,7 +18,7 @@ RUN apt-get -y update && \
     unixodbc-dev
 COPY requirements.txt /requirements.txt
 RUN pip3 install -r /requirements.txt
-ADD src /infinite/src
+ADD infinitechallenge /infinite/infinitechallenge
 ADD resources /infinite/resources
 ADD docker_entrypoint.sh /infinite/docker_entrypoint.sh
 WORKDIR /infinite

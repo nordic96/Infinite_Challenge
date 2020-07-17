@@ -137,6 +137,6 @@ class Phase1:
 if __name__ == '__main__':
     config = configparser.ConfigParser()
     config.read(sys.argv[1])
-    infinitechallenge.logging.add_file_handler(config['LOG']['base_directory'])
+    infinitechallenge.logging.add_file_handler(config['LOG']['logfile_directory'])
     p1 = Phase1(config['Phase1'], sys.argv[2])
     p1.run()
