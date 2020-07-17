@@ -1,10 +1,10 @@
 import subprocess
 import os
 import cv2
-import src.model.skull_detection as sd
-from src.utils import label_image
+import infinitechallenge.model.skull_detection as sd
+from infinitechallenge.utils import label_image
 from tempfile import NamedTemporaryFile
-from src.logging import logger
+from infinitechallenge.logging import logger
 
 
 # Description: Skull Recognition with video stream input

@@ -4,10 +4,10 @@ import shutil
 import configparser
 import cv2
 from tempfile import TemporaryDirectory, NamedTemporaryFile
-from src.pipeline import Results
-from src.logging import logger
-from src.model import vid_recognition as vr
-from src.utils.gdrivefile_util import GDrive
+from infinitechallenge.pipeline import Results
+from infinitechallenge.logging import logger
+from infinitechallenge.model import vid_recognition as vr
+from infinitechallenge.utils.gdrivefile_util import GDrive
 
 
 # 1. process a single video using model

@@ -2,12 +2,12 @@ import glob
 import os
 import sys
 import time
-from src.utils import label_image as label_image_util
+from infinitechallenge.utils import label_image as label_image_util
 from azure.cognitiveservices.vision.face import FaceClient
 from msrest.authentication import CognitiveServicesCredentials
 from azure.cognitiveservices.vision.face.models import TrainingStatusType, Person, SnapshotObjectType, \
     OperationStatusType, APIError, APIErrorException
-from src.logging import logger
+from infinitechallenge.logging import logger
 
 # Use recognise_face() to handle Phase 2
 # frame_detection will no longer be needed, but keep it as backup

@@ -2,11 +2,11 @@ import os
 import sys
 import configparser
 from tempfile import NamedTemporaryFile
-from src.model import estimate_burned_member
-from src.utils.sql_connecter import SqlConnector
-from src.pipeline import Results
-from src.logging import logger
-from src.utils.gdrivefile_util import GDrive
+from infinitechallenge.model import estimate_burned_member
+from infinitechallenge.utils.sql_connecter import SqlConnector
+from infinitechallenge.pipeline import Results
+from infinitechallenge.logging import logger
+from infinitechallenge.utils.gdrivefile_util import GDrive
 
 
 class Phase3:

@@ -3,11 +3,11 @@ import sys
 import shutil
 import configparser
 from tempfile import TemporaryDirectory, NamedTemporaryFile
-from src.model import azure_face_recognition as afr
-from src.model.vid_recognition import Timestamp
-from src.pipeline import Results
-from src.logging import logger
-from src.utils.gdrivefile_util import GDrive
+from infinitechallenge.model import azure_face_recognition as afr
+from infinitechallenge.model.vid_recognition import Timestamp
+from infinitechallenge.pipeline import Results
+from infinitechallenge.logging import logger
+from infinitechallenge.utils.gdrivefile_util import GDrive
 
 
 class Phase2:

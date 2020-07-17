@@ -1,6 +1,6 @@
 import http.client
 import json
-from src.logging import logger
+from infinitechallenge.logging import logger
 
 
 def headers_with_prediction_key(key):
