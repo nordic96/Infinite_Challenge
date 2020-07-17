@@ -96,14 +96,14 @@ def detect_skull_yolo(frame, timestamp, confidence, image_num, yolov5_path, cach
 
 def label_frame(frame, boxes):
     label_list = [('skull', (top, left, bottom, right), 'blue') for (top, right, bottom, left) in boxes]
-    img_file = NamedTemporaryFile()
+    img_file = NamedTemporaryFile(suffix='.jpg')
     cv2.imwrite(img_file.name, frame)
     labeller.label_image(img_file.name, img_file.name, label_list)
     return cv2.imread(img_file.name)
 
 
-def display_sampled_frame(frame, timestamp, skull_coords):
-    cv2.imshow("Frame", label_frame(frame, timestamp, skull_coords))
+def display_sampled_frame(frame, skull_coords):
+    cv2.imshow("Frame", label_frame(frame, skull_coords))
     cv2.waitKey(1000)
 
 
@@ -151,7 +151,7 @@ def process_stream(video_path, azure_key, confidence, model_version, sample_rate
 
         # Display squares on sampled frames where skulls are located
         if display:
-            display_sampled_frame(frame, timestamp, skull_coords)
+            display_sampled_frame(frame, skull_coords)
 
     cv2.destroyAllWindows()
     return extracted_frames
