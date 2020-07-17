@@ -18,7 +18,9 @@ RUN apt-get -y update && \
     unixodbc-dev
 COPY requirements.txt /requirements.txt
 RUN pip3 install -r /requirements.txt
-COPY . /main/
-WORKDIR /main/src/
-RUN ["chmod", "+x", "/main/docker_entrypoint.sh"]
-ENTRYPOINT ["/main/docker_entrypoint.sh"]
+ADD src /infinite/src
+ADD resources /infinite/resources
+ADD docker_entrypoint.sh /infinite/docker_entrypoint.sh
+WORKDIR /infinite
+RUN ["chmod", "+x", "/infinite/docker_entrypoint.sh"]
+ENTRYPOINT ["/infinite/docker_entrypoint.sh"]

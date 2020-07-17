@@ -134,6 +134,6 @@ class Phase1:
 
 if __name__ == '__main__':
     config = configparser.ConfigParser()
-    config.read(sys.argv[2])
-    p1 = Phase1(config['Phase1'], sys.argv[3])
+    config.read(sys.argv[1])
+    p1 = Phase1(config['Phase1'], sys.argv[2])
     p1.run()

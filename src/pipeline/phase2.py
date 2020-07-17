@@ -31,7 +31,7 @@ class Phase2:
                 os.makedirs(out_dir_path, exist_ok=True)
             self.output_directory_path = out_dir_path
         # for uploading cached files
-        self.upload_labelled = config.getboolean('upload_labelled')
+        self.upload_labelled = config.getboolean('upload_images')
         self.upload_results = config.getboolean('upload_results')
         # for google drive
         self.gdrive = GDrive(token_path=os.environ['IC_GDRIVE_AUTH_TOKEN_PATH'],
@@ -111,6 +111,6 @@ class Phase2:
 
 if __name__ == '__main__':
     config = configparser.ConfigParser()
-    config.read(sys.argv[2])
-    p1 = Phase2(config['Phase2'], sys.argv[3])
+    config.read(sys.argv[1])
+    p1 = Phase2(config['Phase2'], sys.argv[2])
     p1.run()
