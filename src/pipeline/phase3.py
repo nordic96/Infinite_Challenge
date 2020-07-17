@@ -1,5 +1,6 @@
 import os
 import sys
+import configparser
 from tempfile import NamedTemporaryFile
 from src.model import estimate_burned_member
 from src.utils.sql_connecter import SqlConnector
@@ -73,7 +74,6 @@ class Phase3:
 
 
 if __name__ == '__main__':
-    import configparser
     config = configparser.ConfigParser()
     config.read(sys.argv[1])
     p3 = Phase3(config['Phase3'], sys.argv[2])
