@@ -25,6 +25,7 @@ def add_file_handler(base_dir):
     os.makedirs(logfile_dir, exist_ok=True)
     file = logging.FileHandler(filename=logfile_name, mode='w')
     file.setLevel(logging.INFO)
+    file.setFormatter(LOG_FORMAT)
     logger.addHandler(file)
     file_handler_count = 0
     for handler in logger.handlers:
