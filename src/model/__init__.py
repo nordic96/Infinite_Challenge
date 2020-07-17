@@ -1,7 +1,7 @@
 import os
 import sys
 import math
-from src.logger.result_logger import logger
+from src.logging.result_logger import logger
 sys.path.append(os.getcwd())
 
 

@@ -3,7 +3,7 @@ import os
 import sys
 import pandas
 from tempfile import NamedTemporaryFile
-from src.logger.base_logger import logger
+from src.logging import logger
 sys.path.append(os.getcwd())
 
 

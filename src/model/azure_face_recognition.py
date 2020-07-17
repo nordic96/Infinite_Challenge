@@ -7,7 +7,7 @@ from azure.cognitiveservices.vision.face import FaceClient
 from msrest.authentication import CognitiveServicesCredentials
 from azure.cognitiveservices.vision.face.models import TrainingStatusType, Person, SnapshotObjectType, \
     OperationStatusType, APIError, APIErrorException
-from src.logger.base_logger import logger
+from src.logging import logger
 
 # Use recognise_face() to handle Phase 2
 # frame_detection will no longer be needed, but keep it as backup

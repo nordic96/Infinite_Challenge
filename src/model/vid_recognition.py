@@ -4,7 +4,7 @@ import cv2
 import src.model.skull_detection as sd
 from src.utils import label_image
 from tempfile import NamedTemporaryFile
-from src.logger.base_logger import logger
+from src.logging import logger
 
 
 # Description: Skull Recognition with video stream input

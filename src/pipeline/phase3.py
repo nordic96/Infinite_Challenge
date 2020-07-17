@@ -5,7 +5,7 @@ from tempfile import NamedTemporaryFile
 from src.model import estimate_burned_member
 from src.utils.sql_connecter import SqlConnector
 from src.pipeline import Results
-from src.logger.base_logger import logger
+from src.logging import logger
 from src.utils.gdrivefile_util import GDrive
 
 

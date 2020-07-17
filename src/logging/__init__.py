@@ -1,6 +1,8 @@
 import os
+import sys
 import logging
 from datetime import datetime
+sys.path.append(os.getcwd())
 
 LOGGER_NAME = 'INFINITE_CHALLENGE'
 LOG_FORMAT = '%(asctime)s %(module)s:%(funcName)s [%(levelname)s] - %(message)s'

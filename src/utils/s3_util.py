@@ -1,7 +1,7 @@
 import boto3
 import os
 from tempfile import TemporaryDirectory
-from src.logger.base_logger import logger
+from src.logging import logger
 
 
 # Assign an IAM Role with permission to GetObject from S3, boto3 will get

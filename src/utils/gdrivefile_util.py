@@ -2,7 +2,7 @@ import os.path
 from mimetypes import guess_type
 from pickle import dump as p_dump, load as p_load
 from io import FileIO
-from src.logger.base_logger import logger
+from src.logging import logger
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.credentials import Credentials

@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory, NamedTemporaryFile
 from src.model import azure_face_recognition as afr
 from src.model.vid_recognition import Timestamp
 from src.pipeline import Results
-from src.logger.base_logger import logger
+from src.logging import logger
 from src.utils.gdrivefile_util import GDrive
 
 

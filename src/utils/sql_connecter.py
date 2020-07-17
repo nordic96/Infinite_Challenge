@@ -1,6 +1,6 @@
 import pyodbc
 import pandas as pd
-from src.logger.base_logger import logger
+from src.logging import logger
 
 # Description: Connects to SQL Server and execute bulk insert & other queries
 # Developed Date: 3 Jul 2020

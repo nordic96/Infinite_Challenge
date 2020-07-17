@@ -5,7 +5,7 @@ import configparser
 import cv2
 from tempfile import TemporaryDirectory, NamedTemporaryFile
 from src.pipeline import Results
-from src.logger.base_logger import logger
+from src.logging import logger
 from src.model import vid_recognition as vr
 from src.utils.gdrivefile_util import GDrive
 

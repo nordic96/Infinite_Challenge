@@ -2,7 +2,7 @@ import face_recognition
 import os
 import cv2
 import imutils
-from src.logger import base_logger
+from src.logging import base_logger
 
 
 class ProcessedImage:
