@@ -1,8 +1,8 @@
 import subprocess
 import os
 import cv2
-import src.utils.labeller as labeller
 import src.model.skull_detection as sd
+from src.utils import label_image
 from tempfile import NamedTemporaryFile
 from src.logger.base_logger import logger
 
@@ -98,7 +98,7 @@ def label_frame(frame, boxes):
     label_list = [('skull', (top, left, bottom, right), 'blue') for (top, right, bottom, left) in boxes]
     img_file = NamedTemporaryFile(suffix='.jpg')
     cv2.imwrite(img_file.name, frame)
-    labeller.label_image(img_file.name, img_file.name, label_list)
+    label_image(img_file.name, img_file.name, label_list)
     return cv2.imread(img_file.name)
 
 

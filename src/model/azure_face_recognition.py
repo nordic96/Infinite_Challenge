@@ -2,7 +2,7 @@ import glob
 import os
 import sys
 import time
-import src.utils.labeller as labeller
+from src.utils import label_image as label_image_util
 from azure.cognitiveservices.vision.face import FaceClient
 from msrest.authentication import CognitiveServicesCredentials
 from azure.cognitiveservices.vision.face.models import TrainingStatusType, Person, SnapshotObjectType, \
@@ -136,7 +136,7 @@ def recognise_faces(fc, image_path, person_group_id):
 
 def label_image(faces, image_path, output_path):
     label_list = [(face['name'], face['bounding_box'], 'green') for face in faces]
-    labeller.label_image(image_path, output_path, label_list)
+    label_image_util(image_path, output_path, label_list)
 
 
 def recognise_faces_many(fc, img_dir_path, person_group_id, out_dir_path, label_and_save=False):
