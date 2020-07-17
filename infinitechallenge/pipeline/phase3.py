@@ -1,6 +1,7 @@
 import os
 import sys
 import configparser
+import infinitechallenge.logging
 from tempfile import NamedTemporaryFile
 from infinitechallenge.model import estimate_burned_member
 from infinitechallenge.utils.sql_connecter import SqlConnector
@@ -76,5 +77,6 @@ class Phase3:
 if __name__ == '__main__':
     config = configparser.ConfigParser()
     config.read(sys.argv[1])
+    infinitechallenge.logging.add_file_handler(config['LOG']['base_directory'])
     p3 = Phase3(config['Phase3'], sys.argv[2])
     p3.run()

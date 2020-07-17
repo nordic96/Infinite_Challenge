@@ -2,6 +2,7 @@ import os
 import sys
 import shutil
 import configparser
+import infinitechallenge.logging
 from tempfile import TemporaryDirectory, NamedTemporaryFile
 from infinitechallenge.model import azure_face_recognition as afr
 from infinitechallenge.model.vid_recognition import Timestamp
@@ -119,5 +120,6 @@ class Phase2:
 if __name__ == '__main__':
     config = configparser.ConfigParser()
     config.read(sys.argv[1])
+    infinitechallenge.logging.add_file_handler(config['LOG']['base_directory'])
     p2 = Phase2(config['Phase2'], sys.argv[2])
     p2.run()

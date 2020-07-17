@@ -6,6 +6,7 @@ import cv2
 from tempfile import TemporaryDirectory, NamedTemporaryFile
 from infinitechallenge.pipeline import Results
 from infinitechallenge.logging import logger
+import infinitechallenge.logging
 from infinitechallenge.model import vid_recognition as vr
 from infinitechallenge.utils.gdrivefile_util import GDrive
 
@@ -136,5 +137,6 @@ class Phase1:
 if __name__ == '__main__':
     config = configparser.ConfigParser()
     config.read(sys.argv[1])
+    infinitechallenge.logging.add_file_handler(config['LOG']['base_directory'])
     p1 = Phase1(config['Phase1'], sys.argv[2])
     p1.run()
