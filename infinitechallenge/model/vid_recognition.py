@@ -1,9 +1,10 @@
 import subprocess
 import os
-import re
 import cv2
-import model.skull_detection as sd
-from logger.base_logger import logger
+import infinitechallenge.model.skull_detection as sd
+from infinitechallenge.utils import label_image
+from tempfile import NamedTemporaryFile
+from infinitechallenge.logging import logger
 
 
 # Description: Skull Recognition with video stream input
@@ -12,9 +13,9 @@ from logger.base_logger import logger
 
 
 class ExtractedFrame:
-    def __init__(self, episode_number, frame, frame_number, timestamp, coord):
-        self.episode_number = episode_number
+    def __init__(self, frame, labelled_frame, frame_number, timestamp, coord):
         self.frame = frame
+        self.labelled_frame = labelled_frame
         self.frame_number = frame_number
         self.timestamp = timestamp
         self.coord = coord
@@ -43,16 +44,6 @@ class Timestamp:
 
     def __str__(self):
         return "{}{delim}{:02d}{delim}{:02d}{delim}{:03d}".format(self.h, self.m, self.s, self.ms, delim=self.delimiter)
-
-
-def get_episode_number(filename):
-    # get base file name
-    episode_num = os.path.basename(filename)
-    # strip file extension
-    episode_num = episode_num.split('.')[0]
-    # strip non-digits
-    episode_num = re.sub('[^0-9]', '', episode_num)
-    return episode_num
 
 
 # Skull detection with Azure Cognitive Services
@@ -103,19 +94,16 @@ def detect_skull_yolo(frame, timestamp, confidence, image_num, yolov5_path, cach
         return None
 
 
-def label_frame(frame, timestamp, boxes):
-    labelled = frame.copy()
-    for (top, right, bottom, left) in boxes:
-        cv2.rectangle(labelled, (left, top), (right, bottom), (0, 255, 0), 2)
-        y = top - 15 if top - 15 > 15 else top + 15
-        cv2.putText(labelled, "skull", (left, y), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
-
-    cv2.putText(labelled, timestamp, (5, 20), cv2.FONT_HERSHEY_SIMPLEX, 0.75, (0, 255, 0), 2)
-    return labelled
+def label_frame(frame, boxes):
+    label_list = [('skull', (top, left, bottom, right), 'blue') for (top, right, bottom, left) in boxes]
+    img_file = NamedTemporaryFile(suffix='.jpg')
+    cv2.imwrite(img_file.name, frame)
+    label_image(img_file.name, img_file.name, label_list)
+    return cv2.imread(img_file.name)
 
 
-def display_sampled_frame(frame, timestamp, skull_coords):
-    cv2.imshow("Frame", label_frame(frame, timestamp, skull_coords))
+def display_sampled_frame(frame, skull_coords):
+    cv2.imshow("Frame", label_frame(frame, skull_coords))
     cv2.waitKey(1000)
 
 
@@ -130,7 +118,6 @@ def process_stream(video_path, azure_key, confidence, model_version, sample_rate
     # initialize output list
     extracted_frames = []
     # processing parameters
-    episode_number = get_episode_number(video_path)
     frame_skip_rate = calculate_skip_rate(vid_cap, sample_rate)
     while vid_cap.isOpened():
         success, frame = vid_cap.read()
@@ -158,12 +145,13 @@ def process_stream(video_path, azure_key, confidence, model_version, sample_rate
                 left = int(left * resize_factor[1])
                 skull_coords.append((top, right, bottom, left))
             if len(skull_coords) > 0:
-                extracted_frames.append(ExtractedFrame(episode_number, frame, frame_number, timestamp, skull_coords))
+                extracted_frames.append(ExtractedFrame(frame, label_frame(frame, skull_coords),
+                                                       frame_number, timestamp, skull_coords))
         logger.info('[{}] skulls detected: {}'.format(timestamp, skull_coords))
 
         # Display squares on sampled frames where skulls are located
         if display:
-            display_sampled_frame(frame, timestamp, skull_coords)
+            display_sampled_frame(frame, skull_coords)
 
     cv2.destroyAllWindows()
     return extracted_frames

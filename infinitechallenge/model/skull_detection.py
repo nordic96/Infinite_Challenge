@@ -1,6 +1,6 @@
 import http.client
 import json
-from logger.base_logger import logger
+from infinitechallenge.logging import logger
 
 
 def headers_with_prediction_key(key):
@@ -40,6 +40,8 @@ def interpret_result(result, conf):
     try:
         for detection in result['predictions']:
             if detection['probability'] < conf:
+                continue
+            if detection['tagName'] != 'skull':
                 continue
             json_box = detection['boundingBox']
             xywh_box = [json_box['left'], json_box['top'], json_box['width'], json_box['height']]

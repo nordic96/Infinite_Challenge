@@ -1,4 +1,3 @@
-![Deploy to Amazon ECS](https://github.com/nordic96/Infinite_Challenge/workflows/Deploy%20to%20Amazon%20ECS/badge.svg)
 ![Docker Automated Build](https://img.shields.io/docker/cloud/automated/nordic96/infinite_challenge)
 ![Docker Cloud Build](https://img.shields.io/docker/cloud/build/nordic96/infinite_challenge)
 

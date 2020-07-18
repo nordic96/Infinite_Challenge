@@ -10,8 +10,6 @@ from torch.utils.tensorboard import SummaryWriter
 import test  # import test.py to get mAP after each epoch
 from models.yolo import Model
 from utils import google_utils
-from utils.datasets import *
-from utils.utils import *
 
 mixed_precision = True
 try:  # Mixed precision training https://github.com/NVIDIA/apex
