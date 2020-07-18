@@ -1,7 +1,7 @@
 import boto3
 import os
 from tempfile import TemporaryDirectory
-from logger.base_logger import logger
+from infinitechallenge.logging import logger
 
 
 # Assign an IAM Role with permission to GetObject from S3, boto3 will get

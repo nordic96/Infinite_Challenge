@@ -1,12 +1,9 @@
 .idea/
 **/__pycache__/
-test/
+temp/test/
 dataset/known_faces/*
 dataset/unknown_faces/*
 venv/
 temp/
-env.list
-env.txt
-token.pickle
-credentials.json
+logs/
 .dockerignore
