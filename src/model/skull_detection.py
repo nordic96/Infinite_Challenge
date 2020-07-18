@@ -41,7 +41,7 @@ def interpret_result(result, conf):
         for detection in result['predictions']:
             if detection['probability'] < conf:
                 continue
-            if detection['tagName'] is 'not':
+            if detection['tagName'] != 'skull':
                 continue
             json_box = detection['boundingBox']
             xywh_box = [json_box['left'], json_box['top'], json_box['width'], json_box['height']]
