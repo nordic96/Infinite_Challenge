@@ -2,7 +2,7 @@ import os.path
 from mimetypes import guess_type
 from pickle import dump as p_dump, load as p_load
 from io import FileIO
-from logger.base_logger import logger
+from infinitechallenge.logging import logger
 from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.credentials import Credentials
@@ -102,23 +102,27 @@ class GDrive:
         folder_name, file_name = os.path.split(remote_filepath)
         if not folder_id:
             folder_id = self._get_folder_id(folder_name)
-        logger.debug(f'searching for {file_name} in {folder_name}')
+        logger.info(f'searching for {file_name} in {folder_name}')
         page_token = None
+        matches = []
         while True:
             response = self.drive.files().list(q=f"name='{file_name}' and '{folder_id}' in parents and trashed = false",
                                                spaces='drive',
                                                fields='nextPageToken, files(id, name, parents)',
                                                pageToken=page_token).execute()
             results = response.get('files', [])
-            if len(results) > 1:
-                logger.critical(f'Duplicates of {remote_filepath} found. File paths should be unique')
-                raise DuplicateError('File paths should be unique')
-            elif len(results) == 1:
-                return results[0]['id']
+            matches += results
             page_token = response.get('nextPageToken', None)
             if page_token is None:
-                raise FileNotFoundError(f'{remote_filepath} cannot be found')
+                break
             logger.debug(f'{file_name} not found, searching in next page...')
+        if len(matches) > 1:
+            logger.critical(f'Duplicates of {remote_filepath} found. File paths should be unique')
+            raise DuplicateError('File paths should be unique')
+        elif len(matches) == 1:
+            return matches[0]['id']
+        else:
+            raise FileNotFoundError(f'{folder_name}/{file_name} does not exist')
 
     def list_files(self, page_size=10):
         """
@@ -209,7 +213,7 @@ class GDrive:
         logger.debug(f'{folder["name"]}[{folder["id"]}]')
         return folder["id"]
 
-    def upload_file(self, filepath, remote_filepath=None, replace_if_exists=True):
+    def upload_file(self, filepath, remote_filepath=None):
         """ Uploads a file located at the specified filepath to the remote_filepath specified. If no remote_filepath is
         specified, the file is uploaded to the root directory on the drive
 
@@ -234,13 +238,10 @@ class GDrive:
         response_fields = 'id, name, parents'
         try:
             # attempt to update file if one with the same name exists
-            file_id = self._get_file_id(filepath, folder_id=folder_id)
+            file_id = self._get_file_id(remote_filepath, folder_id=folder_id)
             # if FileNotFoundError was not raised
 
             metadata = self.drive.files().get(fileId=file_id).execute()
-            if not replace_if_exists:
-                logger.info(f"[{filename}] already exists and was not overwritten")
-                return {'id': file_id, 'name': filename, 'parents': [folder_id]}
             del metadata['id']
             file = self.drive.files().update(fileId=file_id,
                                              body=metadata,
