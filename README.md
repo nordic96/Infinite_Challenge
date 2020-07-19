@@ -13,6 +13,18 @@
 ## Skulls (i.e. Skullmark)
 ![img_skulls](docs/images/skulls.png)
 
+![img_skulls](docs/images/skull_example.png)
+[_Captured from MBC TV Show 'Infinite Challenge 무한도전'_]
+
+One of the unique characteristics of this show is their visual effects and video editing. It is famous for its unique skull mark, throughout the airing of the show from the year 2005-2018.
+The editors of the TV show uses this visual effect, attached near to the member's face/body, to express the person's sudden embarrassment or sometimes humiliation.
+
+## Objective
+
+Our goal was to simply count how many skull marks each member were attached, throughout the entire airing period, and visualise the processed data.
+We wanted to use Facial Recognition, Object Detection and Data Visualisation Tools to achieve our objectives.
+
+
 # Project Description
 ## Data Pipeline
 ![img_datapipeline](docs/images/data_pipeline_2.png)
@@ -27,7 +39,17 @@
 ## Phase 1: Skull Detection
 ## Phase 2: Facial Recognition
 
-![opencvlogo](docs/images/opencv_logo.png)
+![sucessful output](docs/images/face_result_1.jpg)
+
+Once phase 1 completes collecting images where skull is detected from the episode file, Face recognition will come in to play 
+_(above image is the sample result image created by our python script)_
+
+We used `Azure Cognitive Services` from MS, instead of using local facial_recognition model. This was because using cloud services allowed faster processing speed, and it provided significantly higher matching accuracy compared to using OpenCv-Face Recognition Model.
+
+![sucessful output](docs/images/phase2_gdrive_output.png)
+
+For each image saved from phase 2, recognised face with boundaries will be labeled in the image and uploaded automatically, together with the CSV results into our Google Drive for better
+analysis.
 
 ## Phase 3: Analysis & Estimation
-## Batch Processing
+## *Batch Processing (Discontinued)*
