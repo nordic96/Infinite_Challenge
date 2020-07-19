@@ -42,10 +42,14 @@ We currently set the sample rate at 1300 ms, which is the result of a balanced t
 For each frame extracted, the script detects whether a skull is present. We chose to use `Custom Vision` from `Azure Cognitive Services` to train a custom model for two reasons:
  * `Custom Vision` is significantly superior to using local model and detection scripts in terms of speed, and
  * The results of previous predictions are readily available via online portal for manual interpretation and reusing as training data to improve our model.
+
 ![Custom Vision Output](docs/images/CusVis_result.png)
+
 Notably, we discovered that text blocks with special effects frequently confuse our model to label them as skulls. Therefore, we trained our model with dummy labels representing typical types of text blocks in _(Infinite Challenge)_ episodes to achieve better performance.
+
 ![Typically Mistaken](docs/images/typical_error.png)
-In the final stage of Phase 1, the script prepares all frames with skull detections as images, attached with their locations in a `csv` file, for further process in the next phase.
+
+In the final stage of Phase 1, the script prepares all frames with skull detections as images, attached with their locations in a `csv` file, for further process in the next phase.  
 
 ## Phase 2: Facial Recognition
 
