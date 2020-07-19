@@ -35,6 +35,22 @@ We wanted to use Facial Recognition, Object Detection and Data Visualisation Too
         * IF multiple people is detected with the skull, we will use the coordinates of the skull and the detected member's faces that are already logged in the CSV file, to find the person that are located closest to the skull (estimated to be the person who is being burned)
     
 ## Phase 1: Skull Detection
+
+Upon receiving the video file of an episode as input, the Phase 1 script samples frames within the video with a pre-set sample rate (in milliseconds). Higher sample rate means more frames is skipped, which leads to faster processing speed but higher chance of missing a frame with skull.
+We currently set the sample rate at `1300` ms, which is the result of a balanced trade-off between the two aforementioned factors.
+
+For each frame extracted, the script detects whether a skull is present. We chose to use `Custom Vision` from `Azure Cognitive Services` to train a custom model for two reasons:
+ * `Custom Vision` is significantly superior to using local model and detection scripts in terms of speed, and
+ * The results of previous predictions are readily available via online portal for manual interpretation and reusing as training data to improve our model.
+
+![Custom Vision Output](docs/images/CusVis_result.png)
+
+Notably, we discovered that our previous model frequently confuses text blocks with special effects with skulls. Therefore, we trained our model with dummy labels representing typical types of text blocks in _Infinite Challenge_ episodes to achieve better performance.
+
+![Typically Mistaken](docs/images/typical_error.png)
+
+In the final stage of Phase 1, the script caches all frames with skull(s) detected, attached with their skull locations in a `csv` file, for further process in the next phase.
+
 ## Phase 2: Facial Recognition
 
 ![sucessful output](docs/images/face_result_1.jpg)
