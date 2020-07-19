@@ -11,9 +11,7 @@
 
 # Project Overview
 ## Skulls (i.e. Skullmark)
-![img_skulls](docs/images/skulls.png)
-
-![img_skulls](docs/images/skull_example.png)
+![img_skulls](docs/images/skulls_compilation.png)
 [_Captured from MBC TV Show 'Infinite Challenge 무한도전'_]
 
 One of the unique characteristics of this show is their visual effects and video editing. It is famous for its unique skull mark, throughout the airing of the show from the year 2005-2018.
