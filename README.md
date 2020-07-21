@@ -14,26 +14,32 @@
 ![img_skulls](docs/images/skulls_compilation.png)
 [_Captured from MBC TV Show 'Infinite Challenge 무한도전'_]
 
-One of the unique characteristics of this show is their visual effects and video editing. It is famous for its unique skull mark, throughout the airing of the show from the year 2005-2018.
-The editors of the TV show uses this visual effect, attached near to the member's face/body, to express the person's sudden embarrassment or sometimes humiliation.
+One of the unique characteristics of Infinite Challenge is their visual effects and video editing. It is famous for 
+its unique **skull mark**, a visual effect which the editors of the show place near a the member's face/body, to express
+a member's sudden embarrassment or sometimes humiliation during interactions between the members and guests. 
 
 ## Objective
+Our goal is to count the number of times each member was marked with a **skull mark** throughout the entire series, and 
+visualise the processed data.
 
-Our goal was to simply count how many skull marks each member were attached, throughout the entire airing period, and visualise the processed data.
-We wanted to use Facial Recognition, Object Detection and Data Visualisation Tools to achieve our objectives.
-
+## Methodology
+To automate the process of recording each instance of a member being marked with a **skull mark**, we use Facial 
+Detection, Facial Recognition, Object Detection and Data Visualisation Tools. 
 
 # Project Description
 ## Data Pipeline
 ![img_datapipeline](docs/images/data_pipeline_2.png)
-   1. Skull Detector processes the episode video file & saves screenshots into a dir with the same name as video file (i.e. if video is named `ep120.mp4` then the directory that contains screenshots of skulls detected would be dir `ep120/`)
-        * Also, skull detector script will save a csv file that contains the necessary information
-            * When skull is detected (timestamp)
-            * No. of skull detected in one frame (no_skull)
-            * Coordinates of the skull (boxes)
-   1. Main script (facial_recognition model) will iterate the images in the directory and recognise which person is detected in the scene where skull is appeared. 
-        * IF multiple people is detected with the skull, we will use the coordinates of the skull and the detected member's faces that are already logged in the CSV file, to find the person that are located closest to the skull (estimated to be the person who is being burned)
-    
+1. In order to reduce the number of frames we need to process for each episode, we first use object detection to find frames which contain **skull marks** and record relevant data such as:
+	*	Timestamp of the frame skulls were detected in
+	*	Location of the bounding boxes of each **skull mark** detected.
+2. We then process these filtered frames and
+	1. locate each face in the frame, and
+	2. identify the faces that were detected.
+	Once again, we record relevant data such as the location of the bounding boxes of each face detected.
+3. Using the data from previous 2 steps, we can now attempt to determine which member was marked in frames which contain both **skull mark(s)** and identified face(s), and record the results onto a database.
+4. Once we have processed the episodes, we can visualize the data using data in the database using data visualisation software.
+
+# Implementation
 ## Phase 1: Skull Detection
 
 Upon receiving the video file of an episode as input, the Phase 1 script samples frames within the video with a pre-set sample rate (in milliseconds). Higher sample rate means more frames is skipped, which leads to faster processing speed but higher chance of missing a frame with skull.
