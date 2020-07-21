@@ -3,9 +3,9 @@ import sys
 import configparser
 import infinitechallenge.logging
 from tempfile import NamedTemporaryFile
-from infinitechallenge.model import estimate_burned_member
+from infinitechallenge.utils.estimation import estimate_burned_member
 from infinitechallenge.utils.sql_connecter import SqlConnector
-from infinitechallenge.pipeline import Results
+from infinitechallenge.pipeline.results import Results
 from infinitechallenge.logging import logger
 from infinitechallenge.utils.gdrivefile_util import GDrive
 

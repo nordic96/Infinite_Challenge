@@ -2,7 +2,7 @@ import glob
 import os
 import sys
 import time
-from infinitechallenge.utils import label_image as label_image_util
+from infinitechallenge.utils.labelling import label_image as label_image_util
 from azure.cognitiveservices.vision.face import FaceClient
 from msrest.authentication import CognitiveServicesCredentials
 from azure.cognitiveservices.vision.face.models import TrainingStatusType, Person, SnapshotObjectType, \

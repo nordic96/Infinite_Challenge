@@ -6,7 +6,7 @@ import infinitechallenge.logging
 from tempfile import TemporaryDirectory, NamedTemporaryFile
 from infinitechallenge.model import azure_face_recognition as afr
 from infinitechallenge.model.vid_recognition import Timestamp
-from infinitechallenge.pipeline import Results
+from infinitechallenge.pipeline.results import Results
 from infinitechallenge.logging import logger
 from infinitechallenge.utils.gdrivefile_util import GDrive
 
