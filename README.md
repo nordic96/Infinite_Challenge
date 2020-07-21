@@ -42,10 +42,10 @@ Detection, Facial Recognition, Object Detection and Data Visualisation Tools.
 # Implementation
 ## Phase 1: Skull Detection
 
-Upon receiving the video file of an episode as input, the Phase 1 script samples frames within the video with a pre-set sample rate (in milliseconds). Higher sample rate means more frames is skipped, which leads to faster processing speed but higher chance of missing a frame with skull.
-We currently set the sample rate at `1300` ms, which is the result of a balanced trade-off between the two aforementioned factors.
+In Phase 1 of the data pipeline, we first download an episode of the show and sample frames within the video using a specified sample period (in milliseconds). A higher sample period means more frames are skipped, which leads to faster processing speed but with a trade-off of an increased chance of missing frames containing a skull.
+We used a sample period of `1300` ms, which gives us a good balanced between the two aforementioned factors.
 
-For each frame extracted, the script detects whether a skull is present. We chose to use `Custom Vision` from `Azure Cognitive Services` to train a custom model for two reasons:
+For each frame sampled, the script detects whether a skull is present. We chose to use `Custom Vision` from `Azure Cognitive Services` to train a custom model for two reasons:
  * `Custom Vision` is significantly superior to using local model and detection scripts in terms of speed, and
  * The results of previous predictions are readily available via online portal for manual interpretation and reusing as training data to improve our model.
 
@@ -55,7 +55,7 @@ Notably, we discovered that our previous model frequently confuses text blocks w
 
 ![Typically Mistaken](docs/images/typical_error.png)
 
-In the final stage of Phase 1, the script caches all frames with skull(s) detected, attached with their skull locations in a `csv` file, for further process in the next phase.
+In the final stage of Phase 1, the script caches all frames with skull(s) detected, attached with their skull locations in a `csv` file, for later processing in the pipeline.
 
 ## Phase 2: Facial Recognition
 
