@@ -84,16 +84,13 @@ However, in cases with multiple possible faces, multiple **skull marks**, or bot
 2. Calculate the average coordinate of the **skull mark** centroids
 3. Let the closest member to the average **skull mark** be None, and the closest distance to the mark be `infinity`.
 4. For each detected face:
-	* If there is no closest member,
-		1. let the identified name of the face be the closest member.
-		2. calculate the coordinate of the centroid of the face's bounding box.
-		3. let the closest distance be the euclidean distance between the average **skull mark** centroid and the face centroid
-	* Else if there is a closest member,
-		1. calculate the coordinate of the centroid of the face's bounding box.
-		2. calculate the euclidean distance between the average **skull mark** centroid and the face centroid
-		3. If the distance is shorter, let the closest member be the name of the identified face, and the distance be the distance calulated earlier.
+	1. Calculate the coordinate of the centroid of the face's bounding box.
+	2. Calculate the euclidean distance between the average **skull mark** centroid and the face centroid
+	3. If the distance is shorter than the current closest distance, \
+	let the closest member be the name of the identified face, and the distance be the distance calulated earlier.\
+	Else if the distance is equal, prioritize an identified face over a face whose name is `unknown`.
 5. Return the name of the closest member
 	
-This is done for each frame which has had both **skull mark(s)** and faces, and the results are uploaded to a database.
+This is done for each frame which has had both **skull mark(s)** and faces, and the results are uploaded to a database where is can be used later for data visualization.
 
 ## *Batch Processing (Discontinued)*
