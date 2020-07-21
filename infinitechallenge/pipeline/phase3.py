@@ -8,17 +8,18 @@ from infinitechallenge.utils.sql_connecter import SqlConnector
 from infinitechallenge.pipeline.results import Results
 from infinitechallenge.logging import logger
 from infinitechallenge.utils.gdrivefile_util import GDrive
+from infinitechallenge.utils.parsing import get_episode_number_from_filename
 
 
 class Phase3:
-    def __init__(self, config, episode_number):
+    def __init__(self, config, episode_filename):
         logger.info('initializing phase3 parameters')
-        self.episode_number = episode_number
+        self.episode_number = get_episode_number_from_filename(episode_filename)
 
-        input_directory_path = os.path.join(config['input_directory_path'], f'episode{episode_number}')
+        input_directory_path = os.path.join(config['input_directory_path'], f'episode{self.episode_number}')
         self.save_results = config['save_results']
         self.upload_results = config['upload_results']
-        self.output_directory_path = os.path.join(config['output_directory_path'], f'episode{episode_number}')
+        self.output_directory_path = os.path.join(config['output_directory_path'], f'episode{self.episode_number}')
         if self.save_results:
             os.makedirs(self.output_directory_path, exist_ok=True)
         self.results = Results.read(os.path.join(input_directory_path, 'results.csv'))

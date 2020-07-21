@@ -3,22 +3,23 @@ import sys
 import shutil
 import configparser
 import cv2
-from tempfile import TemporaryDirectory, NamedTemporaryFile
-from infinitechallenge.pipeline import Results
-from infinitechallenge.logging import logger
 import infinitechallenge.logging
+from tempfile import TemporaryDirectory, NamedTemporaryFile
+from infinitechallenge.pipeline.results import Results
+from infinitechallenge.logging import logger
 from infinitechallenge.model import vid_recognition as vr
 from infinitechallenge.utils.gdrivefile_util import GDrive
+from infinitechallenge.utils.parsing import get_episode_number_from_filename
 
 
 # 1. process a single video using model
 # 2. cache images with skulls
 # 3. update result.csv for each image
 class Phase1:
-    def __init__(self, config, episode_number):
+    def __init__(self, config, episode_filename):
         logger.info('Initializing phase 1 parameters')
-        self.episode_number = episode_number
-
+        self.episode_filename = episode_filename
+        self.episode_number = get_episode_number_from_filename(episode_filename)
         # prepare directory for caching
         self.cache_dir = TemporaryDirectory()
         self.results = Results.blank()
@@ -49,9 +50,8 @@ class Phase1:
                              client_secrets_path=os.environ['IC_GDRIVE_CLIENT_SECRETS_PATH'])
 
     def download_episode(self):
-        episode_filename = f'episode{self.episode_number}.mp4'
-        remote_path = os.path.join('episodes', episode_filename)
-        cached_video_path = os.path.join(self.cache_dir.name, episode_filename)
+        remote_path = os.path.join('episodes', self.episode_filename)
+        cached_video_path = os.path.join(self.cache_dir.name, self.episode_filename)
         self.gdrive.download_file(remote_path, cached_video_path)
         return cached_video_path
 

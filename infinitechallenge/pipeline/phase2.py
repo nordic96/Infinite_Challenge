@@ -9,14 +9,15 @@ from infinitechallenge.model.vid_recognition import Timestamp
 from infinitechallenge.pipeline.results import Results
 from infinitechallenge.logging import logger
 from infinitechallenge.utils.gdrivefile_util import GDrive
+from infinitechallenge.utils.parsing import get_episode_number_from_filename
 
 
 class Phase2:
-    def __init__(self, config, episode_number):
+    def __init__(self, config, episode_filename):
         logger.info('Initializing phase 2 parameters')
-        self.episode_number = episode_number
+        self.episode_number = get_episode_number_from_filename(episode_filename)
         # input
-        self.input_directory_path = os.path.join(config['input_directory_path'],  f'episode{episode_number}')
+        self.input_directory_path = os.path.join(config['input_directory_path'],  f'episode{self.episode_number}')
         # prepare directory for caching
         self.cache_dir = TemporaryDirectory()
         results_file_path = os.path.join(self.input_directory_path, 'results.csv')
