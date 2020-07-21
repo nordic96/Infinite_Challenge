@@ -30,8 +30,8 @@ Detection, Facial Recognition, Object Detection and Data Visualisation Tools.
 ## Data Pipeline
 ![img_datapipeline](docs/images/data_pipeline_2.png)
 1. In order to reduce the number of frames we need to process for each episode, we first use object detection to find frames which contain **skull marks** and record relevant data such as:
-	*	Timestamp of the frame skulls were detected in
-	*	Location of the bounding boxes of each **skull mark** detected.
+	* Timestamp of the frame **skulls mark(s)** were detected in
+	* Location of the bounding boxes of each **skull mark** detected.
 2. We then process these filtered frames and
 	1. locate each face in the frame, and
 	2. identify the faces that were detected.
@@ -42,34 +42,37 @@ Detection, Facial Recognition, Object Detection and Data Visualisation Tools.
 # Implementation
 ## Phase 1: Skull Detection
 
-In Phase 1 of the data pipeline, we first download an episode of the show and sample frames within the video using a specified sample period (in milliseconds). A higher sample period means more frames are skipped, which leads to faster processing speed but with a trade-off of an increased chance of missing frames containing a skull.
+In Phase 1 of the data pipeline, we first download an episode of the show and sample frames within the video using a specified sample period (in milliseconds). A higher sample period means more frames are skipped, which leads to faster processing speed but with a trade-off of an increased chance of missing frames containing a **skull mark**.
 We used a sample period of `1300` ms, which gives us a good balanced between the two aforementioned factors.
+Another reason we use object detection first is to reduce the number of frames we need to process using facial detection and recognition.
 
-For each frame sampled, the script detects whether a skull is present. We chose to use `Custom Vision` from `Azure Cognitive Services` to train a custom model for two reasons:
- * `Custom Vision` is significantly superior to using local model and detection scripts in terms of speed, and
+For each frame sampled, the script detects whether a **skull mark** is present. 
+Rather than processing each frame locally, we chose to use `Custom Vision` from `Azure Cognitive Services` to train a custom **skull mark** detection model for three reasons:
+ * `Custom Vision` was significantly more accurate than our locally trained model, and 
+ *  Cloud processing allowed our script to be run on lower spec systems, allowing us to reduce the bottlenecked caused by our own hardware limitations.
+detection scripts in terms of speed, and
  * The results of previous predictions are readily available via online portal for manual interpretation and reusing as training data to improve our model.
 
 ![Custom Vision Output](docs/images/CusVis_result.png)
 
-Notably, we discovered that our previous model frequently confuses text blocks with special effects with skulls. Therefore, we trained our model with dummy labels representing typical types of text blocks in _Infinite Challenge_ episodes to achieve better performance.
+Notably, we discovered that our previous model frequently confuses text blocks with special effects with **skulls marks**. Therefore, we trained our model with dummy labels representing typical types of text blocks in _Infinite Challenge_ episodes to achieve better performance.
 
 ![Typically Mistaken](docs/images/typical_error.png)
 
-In the final stage of Phase 1, the script caches all frames with skull(s) detected, attached with their skull locations in a `csv` file, for later processing in the pipeline.
+In the final stage of Phase 1, the script caches all the sampled frames which had **skull mark(s)** detected, along with the location of the bounding boxes in a CSV file, for later processing in the pipeline.
 
 ## Phase 2: Facial Recognition
 
 ![sucessful output](docs/images/face_result_1.jpg)
 
-Once phase 1 completes collecting images where skull is detected from the episode file, Face recognition will come in to play 
+In Phase 2 of the pipeline, facial detection and facial recognition will come in to play 
 _(above image is the sample result image created by our python script)_
 
-We used `Azure Cognitive Services` from MS, instead of using local facial_recognition model. This was because using cloud services allowed faster processing speed, and it provided significantly higher matching accuracy compared to using OpenCv-Face Recognition Model.
+Once again, we used `Azure Cognitive Services` from MS, instead of using processing the images locally. This was because using cloud services allows for faster and more accurate detection and recognition which allowed us to not be bottlenecked by hardware limitation on the computers we own.
 
 ![sucessful output](docs/images/phase2_gdrive_output.png)
 
-For each image saved from phase 2, recognised face with boundaries will be labeled in the image and uploaded automatically, together with the CSV results into our Google Drive for better
-analysis.
+For each image saved from phase 2, recognised faces are labeled in the image and uploaded automatically, together with the results saved onto a CSV file, into our Google Drive for manual review.
 
 ## Phase 3: Analysis & Estimation
 ## *Batch Processing (Discontinued)*
