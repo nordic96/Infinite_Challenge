@@ -75,4 +75,25 @@ Once again, we used `Azure Cognitive Services` from MS, instead of using process
 For each image saved from phase 2, recognised faces are labeled in the image and uploaded automatically, together with the results saved onto a CSV file, into our Google Drive for manual review.
 
 ## Phase 3: Analysis & Estimation
+In Phase 3 of the pipeline, using the results of the previous two phases, we attempt to determine which member was marked with a **skull mark**.
+
+In the simplest case, in a frame with a single face, it is straight-forward to assume that the identified member is the **skull marked** member.
+
+However, in cases with multiple possible faces, multiple **skull marks**, or both, we need to estimate which member was marked. The simple algorithm we use to estimate the marked member is as follows:
+1. Calculate the coordinate of the centroid of each **skull mark's** bounding box
+2. Calculate the average coordinate of the **skull mark** centroids
+3. Let the closest member to the average **skull mark** be None, and the closest distance to the mark be `infinity`.
+4. For each detected face:
+	* If there is no closest member,
+		1. let the identified name of the face be the closest member.
+		2. calculate the coordinate of the centroid of the face's bounding box.
+		3. let the closest distance be the euclidean distance between the average **skull mark** centroid and the face centroid
+	* Else if there is a closest member,
+		1. calculate the coordinate of the centroid of the face's bounding box.
+		2. calculate the euclidean distance between the average **skull mark** centroid and the face centroid
+		3. If the distance is shorter, let the closest member be the name of the identified face, and the distance be the distance calulated earlier.
+5. Return the name of the closest member
+	
+This is done for each frame which has had both **skull mark(s)** and faces, and the results are uploaded to a database.
+
 ## *Batch Processing (Discontinued)*
