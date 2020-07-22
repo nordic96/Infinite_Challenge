@@ -1,10 +1,9 @@
 .idea/
 **/__pycache__/
-test/
+temp/test/
 dataset/known_faces/*
 dataset/unknown_faces/*
 venv/
 temp/
-env.list
+logs/
 .dockerignore
-.gitignore

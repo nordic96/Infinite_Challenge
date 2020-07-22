@@ -4,7 +4,7 @@ import argparse
 import pickle
 import cv2
 import os
-from logger.base_logger import logger
+from logger import logger
 from datetime import date
 import configparser
 

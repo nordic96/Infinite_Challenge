@@ -2,7 +2,7 @@ import face_recognition
 import os
 import cv2
 import imutils
-from logger import base_logger
+from infinitechallenge.logging import logger
 
 
 class ProcessedImage:
@@ -55,7 +55,7 @@ def process_recognition(data, encodings):
 
 
 def locate_faces(image, detection_method):
-    base_logger.logger.info("Resizing face...")
+    logger.info("Resizing face...")
 
     # convert to rgb
     rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -67,7 +67,7 @@ def locate_faces(image, detection_method):
 
     # Detecting the coordinates of the bounding boxes corresponding to each face in the input image
     # then compute the facial embeddings for each face
-    base_logger.logger.info("Recognizing faces...")
+    logger.info("Recognizing faces...")
     resized_boxes = face_recognition.face_locations(rgb, model=detection_method)
     encodings_of_detected_faces = face_recognition.face_encodings(rgb, resized_boxes)
     boxes = []
@@ -127,8 +127,8 @@ if __name__ == "__main__":
     ap.add_argument("-d", "--detection-method", type=str, default="cnn")
     args = vars(ap.parse_args())
 
-    base_logger.logger.info('loading encodings...')
+    logger.info('loading encodings...')
     data = pickle.loads(open(args["encodings"], "rb").read())
     
-    base_logger.logger.info('processing image...')
+    logger.info('processing image...')
     process_image(args['image'], data, args["detection_method"], args['display'])
