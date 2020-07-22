@@ -2,7 +2,7 @@ import subprocess
 import os
 import cv2
 import infinitechallenge.model.skull_detection as sd
-from infinitechallenge.utils import label_image
+from infinitechallenge.utils.labelling import label_image
 from tempfile import NamedTemporaryFile
 from infinitechallenge.logging import logger
 

@@ -102,7 +102,7 @@ class GDrive:
         folder_name, file_name = os.path.split(remote_filepath)
         if not folder_id:
             folder_id = self._get_folder_id(folder_name)
-        logger.info(f'searching for {file_name} in {folder_name}')
+        logger.debug(f'searching for {file_name} in {folder_name}')
         page_token = None
         matches = []
         while True:

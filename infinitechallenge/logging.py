@@ -1,18 +1,14 @@
-import os
-import sys
 import logging
+import os
 from datetime import datetime
-sys.path.append(os.getcwd())
 
 LOGGER_NAME = 'INFINITE_CHALLENGE'
 LOG_FORMAT = '%(asctime)s %(module)s:%(funcName)s [%(levelname)s] - %(message)s'
-
-
 logger = logging.getLogger(LOGGER_NAME)
+console_stream = logging.StreamHandler()
 
 if True:
     logger.setLevel(logging.INFO)
-    console_stream = logging.StreamHandler()
     console_stream.setFormatter(logging.Formatter(LOG_FORMAT))
     console_stream.setLevel(logging.INFO)
     logger.addHandler(console_stream)
@@ -25,7 +21,7 @@ def add_file_handler(base_dir):
     os.makedirs(logfile_dir, exist_ok=True)
     file = logging.FileHandler(filename=logfile_name, mode='w')
     file.setLevel(logging.INFO)
-    file.setFormatter(LOG_FORMAT)
+    file.setFormatter(logging.Formatter(LOG_FORMAT))
     logger.addHandler(file)
     file_handler_count = 0
     for handler in logger.handlers:
@@ -33,4 +29,3 @@ def add_file_handler(base_dir):
             file_handler_count += 1
     if file_handler_count > 1:
         logger.warning(f'Multiple ({file_handler_count}) file handlers are associated with this logger')
-
